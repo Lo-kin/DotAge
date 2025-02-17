@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.Design;
 using System.Linq;
-using System.Runtime.Intrinsics.X86;
 using System.Text;
 using System.Threading.Tasks;
 using DotAge.Render;
@@ -27,12 +25,50 @@ namespace DotAge.Core
             }
             set
             {
+                
                 _position = value;
             }
         }
+
+        private Vector2 _wishForward = new Vector2();
+        public Vector2 WishForward
+        {
+            get
+            {
+                return _wishForward;
+            }
+            set
+            {
+                _wishForward = value;
+                UpdateWishRange();
+            }
+        }
+
+        private RectF _wishRange = new RectF();
+        public RectF WishRange
+        {
+            get
+            {
+                return _wishRange;
+            }
+        }
+
+        public bool UpdateWishRange()
+        {
+            float _xL = Math.Min(Position.X, WishForward.X);
+            float _xR = Math.Max(Position.X, WishForward.X);
+            float _yT = Math.Min(Position.Y, WishForward.Y);
+            float _yB = Math.Max(Position.Y, WishForward.Y);
+            _wishRange = new RectF(new Vector2(_xL , _yT) , new Vector2(_xR , _yB));
+            return true;
+        }
+
+        public RectF CrashBox = new RectF(new Vector2(0,0) , new Vector2(16,16));
+
+        public Vector2 Size = new Vector2(16,16);
         public Path PathNode = new Path();
         public float Health { get; set; }
-        public float Speed { get; set; } = 0.1f;
+        public float Speed { get; set; } = 0.2f;
         public string Name { get; set; }
         public bool Liveable { get; set; }
         public int _maxLiveUint = 20;
@@ -54,12 +90,24 @@ namespace DotAge.Core
                 }
             }
         }
-        public List<Creature> ContainsUnit = new List<Creature>();
+        public List<int> ContainsUnit = new List<int>();
         public RenderProperty[] RenderCanvas = new RenderProperty[8];//一个对象最多保存8个图层
         public bool Visibility { get; set; } = true;
         public int GroupID { get; set; } = 0;
-
+        private List<Point> BindIndex = new List<Point>();
         public int BindCreatureID { get; set; } = -1;
+        private List<Vector2> _bindIndexKeys = new List<Vector2>();
+        public List<Vector2> BindIndexKeys
+        {
+            get
+            {
+                return _bindIndexKeys;
+            }
+            set
+            {
+                _bindIndexKeys.AddRange(value);
+            }
+        }
 
         public bool BindingTargetCreature(int CreatureID)
         {
@@ -77,6 +125,7 @@ namespace DotAge.Core
 
         public Creature()
         {
+            
             RenderProperty _rp = new RenderProperty(new Vector2(), new Vector2(16, 16), 0);
             _rp.TintColor = Color.White;
             _rp.Visibility = true;
@@ -84,8 +133,29 @@ namespace DotAge.Core
             RenderCanvas[^1] = _rp;
         }
 
+        public bool AddIndex(Point Key)
+        {
+            BindIndex.Add(Key);
+            return true;
+        }
+
+        public bool RemoveIndex(Point Key)
+        {
+            if (BindIndex.Contains(Key))
+            {
+                BindIndex.Remove(Key);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+            
+        }
+
         public virtual bool UpdatePosition()
         {
+            CrashBox.Move(WishForward);
             if (BindCreatureID != -1 && GameData.GameCreatures.ContainsKey(BindCreatureID))
             {
                 Position = GameData.GameCreatures[BindCreatureID].Position;
@@ -109,6 +179,20 @@ namespace DotAge.Core
                 RenderCanvas[^1].RenderTexture = 0;
             }
             return false;
+        }
+
+        public bool CommitWishForward()
+        {
+            if (WishForward.X != float.NaN && WishForward.Y != float.NaN)
+            {
+                Position += WishForward;
+                WishForward = new Vector2();
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
 
@@ -179,16 +263,60 @@ namespace DotAge.Core
             RenderCanvas[7].RenderTexture = (int)TextureName.Human_Engineer;
             RenderCanvas[0].RenderTexture = (int)TextureName.Shadow_White;
             RenderCanvas[0].RalativePosition = new Vector2(0, 5);
-
             PathNode.Cycle = true;
             PathNode.AddNode(new Vector2(10, 232));
-
+            
         }
 
         public override bool UpdatePosition()
         {
-
-
+            /*
+            if (PathNode._bindCreatureTarget.Count != 0)
+            {
+                bool ExistGoldMineTarget = false;
+                foreach (var item in PathNode._bindCreatureTarget)
+                {
+                    if (GameData.GameCreatures[item.Item1].GetType() == typeof(GoldMine))
+                    {
+                        ExistGoldMineTarget = true;
+                        break;
+                    }
+                }
+                if (ExistGoldMineTarget == false)
+                {
+                    foreach (var item in GameData.GameCreatures.Values)
+                    {
+                        if (item.GetType() == typeof(GoldMine))
+                        {
+                            PathNode.BindCreatureTarget(item.ID , 1);
+                            break;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach (var item in GameData.GameCreatures.Values)
+                {
+                    if (item.GetType() == typeof(GoldMine))
+                    {
+                        PathNode.BindCreatureTarget(item.ID, 1);
+                        break;
+                    }
+                }
+            }
+            */
+            PathNode.Update(Position);
+            if (Speed * Engine.GameTick > PathNode.RemainLength)
+            {
+                WishForward += PathNode.RemainTarget;
+            }
+            else
+            {
+                WishForward += PathNode.CurrentDirect * Speed * Engine.GameTick;
+            }
+            UpdateWishRange();
+                
             return base.UpdatePosition();
         }
     }
@@ -243,10 +371,6 @@ namespace DotAge.Core
         {
             Storage--;
             base.Dig();
-            
-            
         }
-
-
     }
 }

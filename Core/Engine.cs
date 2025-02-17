@@ -13,12 +13,16 @@ namespace DotAge.Core
 {
     internal class Engine
     {
+        private Version Engine_Version = new Version(1 , 0);
+
         public delegate int AddRP(ref RenderProperty rp);
         public event AddRP AddRenderProperty;
         public delegate bool RemoveRP(int Pos);
         public event RemoveRP RemoveRenderProperty;
         public delegate bool ModifyRP(int Pos, RenderProperty rp);
         public event ModifyRP ModifyRenderProperty;
+
+        public (Vector2, float) CrashLoadRange = (new Vector2() , 2);
 
         public bool GraphicEventAble = false;
 
@@ -62,6 +66,8 @@ namespace DotAge.Core
                         Turret turret_Blue = new Turret();
                         
                         turret_Red.Position = new Vector2(10, 232);
+                        turret_Red.ID = 0;
+                        turret_Blue.ID = 1;
                         turret_Blue.Position = new Vector2(614, 232);
                         GameData.AddCreature(turret_Red);
                         GameData.AddCreature(turret_Blue);
@@ -89,7 +95,7 @@ namespace DotAge.Core
                         }
                     }
                     
-                    if (GameTime % 20 == 0)
+                    if (GameTime % 20 == 0 && GameTime <= 1000)
                     {
                         
                         Random _r = new Random();
@@ -100,12 +106,15 @@ namespace DotAge.Core
                         if (flag == 1)
                         {
                             soildre.Position = new Vector2(10, 232);
+
                         }
                         else
                         {
                             soildre.Position = new Vector2(614, 232);
+
                         }
-                        
+
+
                         GameData.AddCreature(soildre);
                         
                         for (int i = 0; i < soildre.RenderCanvas.Length; i++)
@@ -118,25 +127,9 @@ namespace DotAge.Core
                     foreach (var item in GameData.GameCreatures.Values)
                     {
                         item.UpdatePosition();
-                        int j = -1;
-                        foreach (var mine in GameData.GameMines.Values.ToArray())
-                        {
-                            j++;
-                            if (mine.Position == item.Position)
-                            {
-                                mine.Dig();
-                            }
-                            if (mine.Storage == 0)
-                            {
-                                GameData.GameMines.Remove(GameData.GameMines.Keys.ToArray()[j]);
-                                mine.RenderCanvas[5].RenderTexture = (int)TextureName.Empty;
-                                for (int i = 0; i < item.RenderCanvas.Length; i++)
-                                {
-                                    ModifyRenderProperty(mine.RenderCanvas[i].RenderOrder, mine.RenderCanvas[i]);
-                                }
-                                
-                            }
-                        }
+                        //BaseIndex[,] _index = GameIndex.RectangleGetIndex(item.WishRange);
+                        
+                        
                         for (int i = 0; i < item.RenderCanvas.Length; i++)
                         {
                             ModifyRenderProperty(item.RenderCanvas[i].RenderOrder, item.RenderCanvas[i]);
@@ -144,11 +137,23 @@ namespace DotAge.Core
 
                     }
                     GameTime++;
-
                 }
                 Thread.Sleep(GameTick);
             }
+            
             return true;
+        }
+
+        public bool CheckCrash(RectF rectangle1 , RectF rectangle2)
+        {
+            if (rectangle1.IsContain(rectangle2) == true)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
     }
 }

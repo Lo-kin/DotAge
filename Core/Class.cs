@@ -130,6 +130,61 @@ namespace DotAge.Core
         }
     }
 
+    struct RectF
+    {
+        public float Right { get { return Position.X + Size.X; } }
+        public float Left { get { return Position.X; }}
+        public float Top { get { return Position.Y; }}
+        public float Bottom { get { return Position.Y + Size.Y; } }
+        public Vector2 Position { get; set; } = new Vector2();
+        public Vector2 Size { get; set; } = new Vector2();
+
+        public RectF(Vector2 _position, Vector2 _size)
+        {
+            Position = _position;
+            Size = _size;
+        }
+
+        public float[] ContainCount(RectF rectF)
+        {
+            float[] xyContain = new float[2];
+            if (rectF.Right > Left && rectF.Left < Right)
+            {
+                xyContain[0] = rectF.Right - Left;
+            }
+            if (rectF.Bottom > Top && rectF.Top < Bottom)
+            {
+                xyContain[1] = rectF.Bottom - Top;
+            }
+            return xyContain;
+        }
+
+        public bool IsContain(RectF rectF)
+        {
+            bool stat  = false;
+            if (rectF.Right > Left && rectF.Left < Right)
+            {
+                stat = true;
+            }
+            if (rectF.Right > Left && rectF.Left < Right)
+            {
+                stat = true;
+            }
+            return stat;
+        }
+
+        public bool Move(Vector2 Vec)
+        {
+            Position += Vec;
+            return true;
+        }
+
+        public bool ChangeSize(Vector2 Vec)
+        {
+            Size += Vec;
+            return true;
+        }
+    }
 
     class QuadTree
     {

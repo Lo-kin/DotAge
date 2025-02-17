@@ -99,6 +99,28 @@ namespace DotAge
             {
                 Exit();
             }
+            if (Mouse.GetState().LeftButton == ButtonState.Pressed)
+            {
+                foreach (var item in GameData.GameCreatures.Values.ToList())
+                {
+                    if (item.GetType() == typeof(Soildre))
+                    {
+                        item.PathNode.AddNode(new Vector2(Mouse.GetState().X, Mouse.GetState().Y));
+                    }
+                    
+                }
+            }
+            if (Mouse.GetState().RightButton == ButtonState.Pressed)
+            {
+                foreach (var item in GameData.GameCreatures.Values.ToList())
+                {
+                    if (item.GetType() == typeof(Soildre))
+                    {
+                        item.PathNode.DeleteNode(0);
+                    }
+
+                }
+            }
             // TODO: Add your update logic here
             if (IsRPModified == true)
             {
@@ -121,7 +143,11 @@ namespace DotAge
                 {
                     continue;
                 }
-                spb.DrawString(_font, GameData.GameCreatures.Count().ToString(), new Vector2(0,400), Color.Red);
+                if (GameData.GameCreatures.Count > 40)
+                {
+                    spb.DrawString(_font, GameData.GameCreatures.Values.ToList<Creature>()[30].PathNode.CurrentDirect.ToString() + "/" + GameData.GameCreatures.Values.ToList<Creature>()[30].PathNode.IsInTarget + "/" + GameData.GameCreatures.Values.ToList<Creature>()[30].PathNode.RemainLength, new Vector2(0, 400), Color.Red);
+                }
+                
                 spb.Draw(_texture[1], TmpRP.RenderPosition , TextureIndex.GetTextureX(TmpRP.RenderTexture) , TmpRP.TintColor);
             }
             spb.End();
