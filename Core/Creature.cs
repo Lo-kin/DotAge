@@ -275,7 +275,7 @@ namespace DotAge.Core
             RenderCanvas[0].RenderTexture = (int)TextureName.Shadow_White;
             RenderCanvas[0].RalativePosition = new Vector2(0, 5);
             PathNode.Cycle = true;
-            PathNode.AddNode(new Vector2(10, 232));
+            
             
         }
 

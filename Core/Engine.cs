@@ -69,6 +69,10 @@ namespace DotAge.Core
                         soildre2.PathNode.AddNode(new Vector2(100, 100));
                         GameData.AddCreature(soildre1);
                         GameData.AddCreature(soildre2);
+                        Soildre soildre3 = new Soildre();
+                        soildre3.Position = new Vector2(150, 150);
+                        soildre3.PathNode.AddNode(new Vector2(0, 0));
+                        GameData.AddCreature(soildre3);
                         for (int i = 0; i < soildre1.RenderCanvas.Length; i++)
                         {
                             AddRenderProperty(ref soildre1.RenderCanvas[i]);
@@ -77,6 +81,10 @@ namespace DotAge.Core
                         for (int i = 0; i < soildre2.RenderCanvas.Length; i++)
                         {
                             AddRenderProperty(ref soildre2.RenderCanvas[i]);
+                        }
+                        for (int i = 0; i < soildre3.RenderCanvas.Length; i++)
+                        {
+                            AddRenderProperty(ref soildre3.RenderCanvas[i]);
                         }
                     }
                     /*
