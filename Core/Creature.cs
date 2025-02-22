@@ -63,12 +63,23 @@ namespace DotAge.Core
             return true;
         }
 
-        public RectF CrashBox = new RectF(new Vector2(0,0) , new Vector2(16,16));
-
+        public RectF _crashBox = new RectF(new Vector2(0,0) , new Vector2(16,16));
+        public RectF CrashBox
+        {
+            get
+            {
+                _crashBox.Position = Position;
+                return _crashBox;
+            }
+            set
+            {
+                _crashBox = value;
+            }
+        }
         public Vector2 Size = new Vector2(16,16);
         public Path PathNode = new Path();
-        public float Health { get; set; }
-        public float Speed { get; set; } = 0.2f;
+        public float Health { get; set; } = 100;
+        public float Speed { get; set; } = 0.02f;
         public string Name { get; set; }
         public bool Liveable { get; set; }
         public int _maxLiveUint = 20;
@@ -315,7 +326,6 @@ namespace DotAge.Core
             {
                 WishForward += PathNode.CurrentDirect * Speed * Engine.GameTick;
             }
-            UpdateWishRange();
                 
             return base.UpdatePosition();
         }

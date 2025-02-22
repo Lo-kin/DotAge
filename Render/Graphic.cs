@@ -143,9 +143,9 @@ namespace DotAge
                 {
                     continue;
                 }
-                if (GameData.GameCreatures.Count > 40)
+                if (GameData.GameCreatures.Count > 0)
                 {
-                    spb.DrawString(_font, GameData.GameCreatures.Values.ToList<Creature>()[30].PathNode.CurrentDirect.ToString() + "/" + GameData.GameCreatures.Values.ToList<Creature>()[30].PathNode.IsInTarget + "/" + GameData.GameCreatures.Values.ToList<Creature>()[30].PathNode.RemainLength, new Vector2(0, 400), Color.Red);
+                    spb.DrawString(_font, GameData.GameCreatures.Values.ToList<Creature>()[0].Position.ToString() + "/\n" + GameData.GameCreatures.Values.ToList<Creature>()[0].PathNode.IsInTarget + "/\n" + GameData.GameCreatures.Values.ToList<Creature>()[0].PathNode.RemainLength + "\n" + Engine.IsCrash, new Vector2(0, 400), Color.Red) ;
                 }
                 
                 spb.Draw(_texture[1], TmpRP.RenderPosition , TextureIndex.GetTextureX(TmpRP.RenderTexture) , TmpRP.TintColor);

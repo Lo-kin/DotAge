@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -58,9 +59,28 @@ namespace DotAge.Core
                 
                 if (GraphicEventAble)
                 {
-
-                    
-                    if (GameTime == 1)
+                    if (GameTime == 0)
+                    {
+                        Soildre soildre1 = new Soildre();
+                        soildre1.Position = new Vector2(100, 100);
+                        soildre1.PathNode.AddNode(new Vector2(300, 300));
+                        Soildre soildre2 = new Soildre();
+                        soildre2.Position = new Vector2(300, 300);
+                        soildre2.PathNode.AddNode(new Vector2(100, 100));
+                        GameData.AddCreature(soildre1);
+                        GameData.AddCreature(soildre2);
+                        for (int i = 0; i < soildre1.RenderCanvas.Length; i++)
+                        {
+                            AddRenderProperty(ref soildre1.RenderCanvas[i]);
+                        }
+                        
+                        for (int i = 0; i < soildre2.RenderCanvas.Length; i++)
+                        {
+                            AddRenderProperty(ref soildre2.RenderCanvas[i]);
+                        }
+                    }
+                    /*
+                    if (GameTime == 0)
                     {
                         Turret turret_Red = new Turret();
                         Turret turret_Blue = new Turret();
@@ -95,13 +115,14 @@ namespace DotAge.Core
                         }
                     }
                     
-                    if (GameTime % 20 == 0 && GameTime <= 1000)
+                    if (GameTime % 20 == 1 && GameTime <= 1000)
                     {
                         
                         Random _r = new Random();
                         int flag = (int)_r.NextInt64(1, GameData.GameGroups.Count);
                         
                         Soildre soildre = new Soildre();
+                        soildre.Health = GameTime;
                         soildre.SetGroup(flag);
                         if (flag == 1)
                         {
@@ -123,18 +144,42 @@ namespace DotAge.Core
                         }
                         
                     }
-                    
+                    */
+
+                    GameIndex.BuildEmptyIndex(CrashLoadRange.Item1, CrashLoadRange.Item2);
+                    BaseIndex[,] _index = GameIndex.GetRangeIndex(CrashLoadRange.Item1, CrashLoadRange.Item2);
+                    foreach (var item in _index)
+                    {
+                        if (item.CreatureIndex.Count == 0)
+                        {
+                            continue;
+                        }
+                        for (int index1 = 0;index1 <= item.CreatureIndex.Count - 1;index1 ++)
+                        {
+                            
+                            for (int index2 = index1 + 1; index2 <= item.CreatureIndex.Count - 1; index2++)
+                            {
+                                GameData.GameCreatures[item.CreatureIndex[index1]].UpdatePosition();
+                                GameData.GameCreatures[item.CreatureIndex[index2]].UpdatePosition();
+                                var IsCrash = GameData.GameCreatures[item.CreatureIndex[index1]].WishRange.IsContain(GameData.GameCreatures[item.CreatureIndex[index2]].WishRange);//先查看预期运动范围是否相交
+                                if (IsCrash == true)
+                                {
+                                    var CrashCount = GameData.GameCreatures[item.CreatureIndex[index1]].CrashBox.ContainCount(GameData.GameCreatures[item.CreatureIndex[index2]].CrashBox);//二者的crashbox属性比较
+                                    GameData.GameCreatures[item.CreatureIndex[index1]].WishForward += CrashCount / 2;
+                                    GameData.GameCreatures[item.CreatureIndex[index2]].WishForward -= CrashCount / 2;
+                                    //IsCrash = CrashCount;
+                                }
+                            }
+                        }
+                    }
+
                     foreach (var item in GameData.GameCreatures.Values)
                     {
-                        item.UpdatePosition();
-                        //BaseIndex[,] _index = GameIndex.RectangleGetIndex(item.WishRange);
-                        
-                        
+                        item.CommitWishForward();
                         for (int i = 0; i < item.RenderCanvas.Length; i++)
                         {
                             ModifyRenderProperty(item.RenderCanvas[i].RenderOrder, item.RenderCanvas[i]);
                         }
-
                     }
                     GameTime++;
                 }
@@ -143,7 +188,7 @@ namespace DotAge.Core
             
             return true;
         }
-
+        public static Vector2 IsCrash = new Vector2(-1,-1);
         public bool CheckCrash(RectF rectangle1 , RectF rectangle2)
         {
             if (rectangle1.IsContain(rectangle2) == true)

@@ -145,16 +145,16 @@ namespace DotAge.Core
             Size = _size;
         }
 
-        public float[] ContainCount(RectF rectF)
+        public Vector2 ContainCount(RectF rectF)
         {
-            float[] xyContain = new float[2];
-            if (rectF.Right > Left && rectF.Left < Right)
+            Vector2 xyContain = new Vector2();
+            if (rectF.Right > Left && rectF.Left < Right)//如果相交，值总是正数，比较值的右边或者上边相对被比较值的左边或下边大
             {
-                xyContain[0] = rectF.Right - Left;
+                xyContain.X = Left - rectF.Left;
             }
             if (rectF.Bottom > Top && rectF.Top < Bottom)
             {
-                xyContain[1] = rectF.Bottom - Top;
+                xyContain.Y = Top - rectF.Top;
             }
             return xyContain;
         }
@@ -166,7 +166,7 @@ namespace DotAge.Core
             {
                 stat = true;
             }
-            if (rectF.Right > Left && rectF.Left < Right)
+            if (rectF.Bottom > Top && rectF.Top < Bottom)
             {
                 stat = true;
             }
@@ -184,6 +184,12 @@ namespace DotAge.Core
             Size += Vec;
             return true;
         }
+    }
+
+    class CrashBox
+    {
+        public RectF Bounds;
+
     }
 
     class QuadTree

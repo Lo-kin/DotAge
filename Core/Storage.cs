@@ -25,7 +25,7 @@ namespace DotAge.Core
         {
             Thread thread = new Thread(() => { test(); });
             thread.Name = "test";
-            thread.Start();
+            //thread.Start();
         }
 
         public static void test()
@@ -37,6 +37,7 @@ namespace DotAge.Core
 
         public static bool AddGroup(Group group)
         {
+            
             if (group == null)
             {
                 return false;
@@ -159,7 +160,7 @@ namespace DotAge.Core
             BuildEmptyIndex(new Vector2(), 2);
             Thread thread = new Thread(() => { test(); });
             thread.Name = "test1";
-            thread.Start();
+            //thread.Start();
         }
 
         public static void test()
@@ -182,12 +183,9 @@ namespace DotAge.Core
                 for (int  _x = SEpoints[0].X; _x <= SEpoints[1].X ; _x++)
                 {
                     SetIndex(_x, _y , false);
-                    //GridIndex.Add(new Point(_x, _y) , new BaseIndex());
                 }
             }
-
             return true;
-
         }
 
         public static Point[] GetStartEndPoint(Vector2 Start , Vector2 End)
@@ -240,6 +238,12 @@ namespace DotAge.Core
                 }
             }
             return result;
+        }
+
+        public static BaseIndex[,] GetRangeIndex(Vector2 _position , float Range)
+        {
+            RectF rectF = new RectF(new Vector2(_position.X - Range , _position.Y - Range) , new Vector2(Range * 2 , Range * 2));
+            return RectangleGetIndex(rectF);
         }
 
         public static bool SetCreature(Creature _creature)
