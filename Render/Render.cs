@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DotAge.Core;
+using Microsoft.Xna.Framework.Content;
 
 namespace DotAge.Render
 {
@@ -18,11 +19,12 @@ namespace DotAge.Render
         public Vector2 _RBPosition = new Vector2();
         public Color TintColor = Color.White;
         public int RenderOrder = 0;
-        public int RenderTexture = 2;
+        public TextureName RenderTexture = TextureName.Empty;
         public bool Visibility = false;
         public bool Init = false;
+        public bool PropertyChanged = false;
 
-        public RenderProperty(Vector2 _position, Vector2 _size, int _texture)
+        public RenderProperty(Vector2 _position, Vector2 _size, TextureName _texture)
         {
             RalativePosition = _position;
             Size = _size;
@@ -81,6 +83,12 @@ namespace DotAge.Render
 
         public static Rectangle? GetTextureX(int _x)
         {
+            return GetTextureXY(_x % Width, (int)MathF.Floor(_x / Width));
+        }
+
+        public static Rectangle? GetTextureX(TextureName name)
+        {
+            int _x = (int)name;
             return GetTextureXY(_x % Width, (int)MathF.Floor(_x / Width));
         }
 
@@ -146,7 +154,7 @@ namespace DotAge.Render
 
     }
 
-    enum TextureName
+    public enum TextureName
     {
         MissingTexture = 0,
         Block_White = 1,
@@ -159,5 +167,6 @@ namespace DotAge.Render
         Human_Engineer = 8,
         Bullet_Yellow = 9,
         Shadow_White = 10,
+        White_Ball = 11,
     }
 }

@@ -39,19 +39,13 @@ namespace DotAge.Core
             }
         } 
 
-        public List<(int , int)> _bindCreatureTarget = new List<(int, int)>();//CreatureID , NodeIndex
-
         public Path()
         {
-            //AddNode(new Vector2(0 , 0));
+
         }
 
         public bool Update(Vector2 Position)
         {
-            foreach (var item in _bindCreatureTarget)
-            {
-                Nodes[item.Item2] = GameData.GameCreatures[item.Item1].Position;
-            }
             if (Position == CurrentTarget)
             {
                 IsInTarget = true;
@@ -62,13 +56,11 @@ namespace DotAge.Core
             }
             else
             {
-
                 IsInTarget = false;
-                CurrentDirect = Vector2.Normalize(CurrentTarget - Position);
-                RemainLength = (CurrentTarget - Position).Length();
-                RemainTarget = CurrentTarget - Position;
-
             }
+            CurrentDirect = Vector2.Normalize(CurrentTarget - Position);
+            RemainLength = (CurrentTarget - Position).Length();
+            RemainTarget = CurrentTarget - Position;
             return false;
         }
 
@@ -94,33 +86,6 @@ namespace DotAge.Core
             {
                 return false;
             }
-        }
-
-        public bool BindCreatureTarget(int CreatureID , int TargetNodeIndex)
-        {
-            if (CheckNodeIndexVaild(TargetNodeIndex) == false)
-            {
-                return false;
-            }
-            if(GameData.GameCreatures.ContainsKey(CreatureID))
-            {
-                _bindCreatureTarget.Add((CreatureID, TargetNodeIndex));
-                return true;
-            }
-            return false;
-        }
-
-        public bool UnbindeCreatureTarget(int TargetNodeIndex)
-        {
-            foreach (var item in _bindCreatureTarget)
-            {
-                if (item.Item2 == TargetNodeIndex)
-                {
-                    _bindCreatureTarget.Remove(item);
-                    break;
-                }
-            }
-            return false;
         }
 
         public bool CheckNodeIndexVaild(int Index)

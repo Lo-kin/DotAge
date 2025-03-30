@@ -15,7 +15,7 @@ namespace DotAge.Core
     {
         public static Dictionary<int, Group> GameGroups { get; } = new Dictionary<int, Group>();
         public static int DefaultGroupID = 0;
-        public static Dictionary<int, Creature> GameCreatures { get; } = new Dictionary<int, Creature>();
+        public static Dictionary<int, Entity> GameEntities { get; } = new Dictionary<int, Entity>();
         public static int MaxGameCreature = 65536;
         public static int MaxGameGroup = 1024;
         public static List<int> EmptyCreatureID = Enumerable.Range(0, MaxGameCreature).ToList();
@@ -23,8 +23,10 @@ namespace DotAge.Core
 
         static GameData()
         {
-            Thread thread = new Thread(() => { test(); });
-            thread.Name = "test";
+            Thread thread = new(() => { test(); })
+            {
+                Name = "test"
+            };
             //thread.Start();
         }
 
@@ -96,7 +98,7 @@ namespace DotAge.Core
                 {
                     Random r = new Random();
                     int rn = (int)r.NextInt64(0, EmptyCreatureID.Count - 1);
-                    GameCreatures.Add(EmptyCreatureID[rn], creature);
+                    GameEntities.Add(EmptyCreatureID[rn], creature);
                     creature.ID = EmptyCreatureID[rn];
                     EmptyCreatureID.RemoveAt(rn);
                     AddToIndex(creature);
@@ -106,14 +108,14 @@ namespace DotAge.Core
                 {
                     if (EmptyCreatureID.Contains(creature.ID))
                     {
-                        GameCreatures.Add(creature.ID, creature);
+                        GameEntities.Add(creature.ID, creature);
                         EmptyCreatureID.Remove(creature.ID);
                     }
                     else
                     {
                         Random r = new Random();
                         int rn = (int)r.NextInt64(0, EmptyCreatureID.Count - 1);
-                        GameCreatures.Add(EmptyCreatureID[rn], creature);
+                        GameEntities.Add(EmptyCreatureID[rn], creature);
                         creature.ID = EmptyCreatureID[rn];
                         EmptyCreatureID.RemoveAt(rn);
                     }
@@ -130,9 +132,9 @@ namespace DotAge.Core
 
         public static bool RemoveCreature(int creatureID)
         {
-            if (GameCreatures.Keys.Contains(creatureID))
+            if (GameEntities.Keys.Contains(creatureID))
             {
-                GameCreatures.Remove(creatureID);
+                GameEntities.Remove(creatureID);
                 EmptyCreatureID.Add(creatureID);
                 return true;
             }
@@ -249,8 +251,8 @@ namespace DotAge.Core
         public static bool SetCreature(Creature _creature)
         {
             int _ID = _creature.ID;
-            var _Size = _creature.Size;
-            var _Position = _creature.Position;
+            var _Size = _creature.PhysicEntity.Size;
+            var _Position = _creature.PhysicEntity.Position;
             int _xstart = (int)MathF.Floor(_Position.X / GridBlockWidth);
             int _ystart = (int)MathF.Floor(_Position.Y / GridBlockHeight);
             int _xend = (int)MathF.Floor((_Position.X + _Size.X) / GridBlockWidth);

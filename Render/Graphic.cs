@@ -38,6 +38,10 @@ namespace DotAge
 
         public bool ModifyRPBuffer(int Pos , RenderProperty rp)
         {
+            if (rp.Init == false)
+            {
+                return false;
+            }
             if (Pos < 0 || Pos > 65535 || !ExistRP.Contains(Pos))
             {
                 return false;
@@ -99,28 +103,6 @@ namespace DotAge
             {
                 Exit();
             }
-            if (Mouse.GetState().LeftButton == ButtonState.Pressed)
-            {
-                foreach (var item in GameData.GameCreatures.Values.ToList())
-                {
-                    if (item.GetType() == typeof(Soildre))
-                    {
-                        item.PathNode.AddNode(new Vector2(Mouse.GetState().X, Mouse.GetState().Y));
-                    }
-                    
-                }
-            }
-            if (Mouse.GetState().RightButton == ButtonState.Pressed)
-            {
-                foreach (var item in GameData.GameCreatures.Values.ToList())
-                {
-                    if (item.GetType() == typeof(Soildre))
-                    {
-                        item.PathNode.DeleteNode(0);
-                    }
-
-                }
-            }
             // TODO: Add your update logic here
             if (IsRPModified == true)
             {
@@ -132,7 +114,8 @@ namespace DotAge
 
         protected override void Draw(GameTime gameTime)
         {
-            GraphicsDevice.Clear(Color.CornflowerBlue);
+            
+            GraphicsDevice.Clear(Color.Black);
             
             spb.Begin();
 
@@ -143,13 +126,13 @@ namespace DotAge
                 {
                     continue;
                 }
-                if (GameData.GameCreatures.Count > 0)
+                if (TmpRP.Visibility == true)
                 {
-                    spb.DrawString(_font, GameData.GameCreatures.Values.ToList<Creature>()[0].Position.ToString() + "/\n" + GameData.GameCreatures.Values.ToList<Creature>()[0].PathNode.IsInTarget + "/\n" + GameData.GameCreatures.Values.ToList<Creature>()[0].PathNode.RemainLength + "\n" + Engine.IsCrash, new Vector2(0, 400), Color.Red) ;
+                    spb.Draw(_texture[1], TmpRP.RenderPosition, TextureIndex.GetTextureX(TmpRP.RenderTexture), TmpRP.TintColor);
                 }
                 
-                spb.Draw(_texture[1], TmpRP.RenderPosition , TextureIndex.GetTextureX(TmpRP.RenderTexture) , TmpRP.TintColor);
             }
+            //spb.DrawString(_font, (1 / gameTime.ElapsedGameTime.TotalSeconds).ToString() + "\n" + Engine.tessta, Vector2.Zero , Color.Red);
             spb.End();
             base.Draw(gameTime);
         }

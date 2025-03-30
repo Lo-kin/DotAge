@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -14,7 +15,7 @@ namespace DotAge.Core
 {
     internal class Engine
     {
-        private Version Engine_Version = new Version(1 , 0);
+        private Version Engine_Version = new Version(0 , 1 , 0);
 
         public delegate int AddRP(ref RenderProperty rp);
         public event AddRP AddRenderProperty;
@@ -27,7 +28,7 @@ namespace DotAge.Core
 
         public bool GraphicEventAble = false;
 
-        public const int GameTick = 10;
+        public const int GameTick = 20;
         public int GameTime = 0;
 
         public Engine()
@@ -54,39 +55,47 @@ namespace DotAge.Core
 
         public bool MainLoop(string[] args)
         {
+            float length = 200;
             while (true)
             {
+                DateTime StartExcute = DateTime.Now;
                 
                 if (GraphicEventAble)
                 {
-                    if (GameTime == 0)
+                    if (GameTime % 1 == 0 && GameTime <= 1000)
                     {
+                        Random random = new Random();  /*
+                        for (int i = 0; i<= 50; i++)
+                        {*/
                         Soildre soildre1 = new Soildre();
-                        soildre1.Position = new Vector2(100, 100);
-                        soildre1.PathNode.AddNode(new Vector2(300, 300));
-                        Soildre soildre2 = new Soildre();
-                        soildre2.Position = new Vector2(300, 300);
-                        soildre2.PathNode.AddNode(new Vector2(100, 100));
-                        GameData.AddCreature(soildre1);
-                        GameData.AddCreature(soildre2);
-                        Soildre soildre3 = new Soildre();
-                        soildre3.Position = new Vector2(150, 150);
-                        soildre3.PathNode.AddNode(new Vector2(0, 0));
-                        GameData.AddCreature(soildre3);
-                        for (int i = 0; i < soildre1.RenderCanvas.Length; i++)
+                        //soildre1.RenderPosition = new Vector2(100, 100);
+                        //var x = MathF.Cos(MathF.Acos(GameTime));
+                        //var y = MathF.Sqrt(1 - (x * x));
+                        soildre1.PhysicEntity.Position = new Vector2(320,240);
+                        var x = MathF.Cos(GameTime / (1 * MathF.PI));
+                        var y = MathF.Sqrt(1 - (x * x));
+                        var sign = MathF.Pow(-1, GameTime);
+                        var excu = GameTime % 960;
+                        if (GameTime >= 480 )
                         {
-                            AddRenderProperty(ref soildre1.RenderCanvas[i]);
+                            excu -= (GameTime % 480)*2;
                         }
                         
-                        for (int i = 0; i < soildre2.RenderCanvas.Length; i++)
-                        {
-                            AddRenderProperty(ref soildre2.RenderCanvas[i]);
-                        }
-                        for (int i = 0; i < soildre3.RenderCanvas.Length; i++)
-                        {
-                            AddRenderProperty(ref soildre3.RenderCanvas[i]);
-                        }
+                        soildre1.PhysicEntity.PathNodes.AddNode(new Vector2(320 + x * length * sign, 240 + y * length * sign));
+                        soildre1.PhysicEntity.PathNodes.AddNode(new Vector2(320 - x * length * sign, 240 - y * length * sign));
+                        GameData.AddCreature(soildre1);
+                        AddRenderGroups(soildre1);
+
+                        /*Soildre soildre2 = new Soildre();
+                        //soildre1.RenderPosition = new Vector2(100, 100);
+                        soildre2.CreaturePhysicEntity.Position = new Vector2(100, 100);
+                        soildre2.CreaturePhysicEntity.PathNodes.AddNode(new Vector2(300, 300));
+                        soildre2.CreaturePhysicEntity.PathNodes.AddNode(new Vector2(100, 100));
+                        GameData.AddCreature(soildre2);
+                        AddRenderGroups(soildre2);*/
                     }
+                        /*}
+                    }*/
                     /*
                     if (GameTime == 0)
                     {
@@ -153,9 +162,9 @@ namespace DotAge.Core
                         
                     }
                     */
-
+                    /*
                     GameIndex.BuildEmptyIndex(CrashLoadRange.Item1, CrashLoadRange.Item2);
-                    BaseIndex[,] _index = GameIndex.GetRangeIndex(CrashLoadRange.Item1, CrashLoadRange.Item2);
+                    BaseIndex[,] _index = GameIndex.GetRangeIndex(CrashLoadRange.Item1, CrashLoadRange.Item2);//??????没有加入index吗
                     foreach (var item in _index)
                     {
                         if (item.CreatureIndex.Count == 0)
@@ -164,42 +173,74 @@ namespace DotAge.Core
                         }
                         for (int index1 = 0;index1 <= item.CreatureIndex.Count - 1;index1 ++)
                         {
-                            
+
                             for (int index2 = index1 + 1; index2 <= item.CreatureIndex.Count - 1; index2++)
                             {
-                                GameData.GameCreatures[item.CreatureIndex[index1]].UpdatePosition();
-                                GameData.GameCreatures[item.CreatureIndex[index2]].UpdatePosition();
-                                var IsCrash = GameData.GameCreatures[item.CreatureIndex[index1]].WishRange.IsContain(GameData.GameCreatures[item.CreatureIndex[index2]].WishRange);//先查看预期运动范围是否相交
-                                if (IsCrash == true)
-                                {
-                                    var CrashCount = GameData.GameCreatures[item.CreatureIndex[index1]].CrashBox.ContainCount(GameData.GameCreatures[item.CreatureIndex[index2]].CrashBox);//二者的crashbox属性比较
-                                    GameData.GameCreatures[item.CreatureIndex[index1]].WishForward += CrashCount / 2;
-                                    GameData.GameCreatures[item.CreatureIndex[index2]].WishForward -= CrashCount / 2;
-                                    //IsCrash = CrashCount;
-                                }
+
                             }
                         }
                     }
-
-                    foreach (var item in GameData.GameCreatures.Values)
+                    */
+                    foreach (var item in GameData.GameEntities.Values)
                     {
-                        item.CommitWishForward();
-                        for (int i = 0; i < item.RenderCanvas.Length; i++)
-                        {
-                            ModifyRenderProperty(item.RenderCanvas[i].RenderOrder, item.RenderCanvas[i]);
-                        }
+
+                        item.PhysicEntity.UpdateWish();
+                        object Info = null;
+                        //(Vector2, (CrashInfo, CrashInfo))? Info = PhysicEntity.Crash(GameData.GameCreatures.Values.ToArray()[0].CreaturePhysicEntity , GameData.GameCreatures.Values.ToArray()[1].CreaturePhysicEntity);
+                        if (Info != null)
+                        {/*
+                            tessta = Info.Value.Item1.ToString() + "\n" + Info.Value.Item2.Item1.Direct + "\n" + Info.Value.Item2.Item2.Direct;
+                            item.CreaturePhysicEntity.WishForward += VectorHelper.Direct(item.CreaturePhysicEntity.WishForward) * Info.Value.Item1 / 2;
+                        */}
+                        
+                        
+                        item.PhysicEntity.Update();
+                        item.UpdatePosition();
+
+                        ModifyRenderGroups(item);
                     }
                     GameTime++;
                 }
-                Thread.Sleep(GameTick);
+                DateTime EndExcute = DateTime.Now;
+                TimeSpan ts = EndExcute - StartExcute;
+                float SleepTime = 10f;
+                if (ts.TotalMilliseconds <= GameTick)
+                {
+                    Thread.Sleep(GameTick - (int)ts.TotalMilliseconds);
+                }
+                else
+                {
+                    SleepTime = (float)ts.TotalMilliseconds;
+                }
+                tessta = (1000 / SleepTime).ToString();
             }
             
             return true;
         }
-        public static Vector2 IsCrash = new Vector2(-1,-1);
+
+        public static string tessta = "";
+
+        private bool AddRenderGroups(Entity _entity)
+        {
+            for (int j = 0; j < _entity.RenderEntity.RenderCanvas.Length; j++)
+            {
+                AddRenderProperty(ref _entity.RenderEntity.RenderCanvas[j]);
+            }
+            return true;
+        }
+
+        private bool ModifyRenderGroups(Entity _entity)
+        {
+            for (int i = 0; i < _entity.RenderEntity.RenderCanvas.Length; i++)
+            {
+                ModifyRenderProperty(_entity.RenderEntity.RenderCanvas[i].RenderOrder, _entity.RenderEntity.RenderCanvas[i]);
+            }
+            return true;
+        }
+
         public bool CheckCrash(RectF rectangle1 , RectF rectangle2)
         {
-            if (rectangle1.IsContain(rectangle2) == true)
+            if (RectF.IsContain(rectangle1,rectangle2) == true)
             {
                 return true;
             }
