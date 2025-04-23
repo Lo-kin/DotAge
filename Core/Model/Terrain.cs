@@ -6,7 +6,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DotAge.Core
+namespace DotAge.Core.Model
 {
     class Terrain
     {
@@ -15,7 +15,7 @@ namespace DotAge.Core
 
     class VoidBlock : Terrain
     {
-        
+
     }
 
     class BaseBlock
@@ -28,13 +28,13 @@ namespace DotAge.Core
                 return new Rectangle(Position, RenderSize);
             }
         }
-            
+
         public Size RenderSize { get; set; } = new Size(16, 16);
         public Point Position { get; set; } = new Point();
 
         public BaseBlock()
-        { 
-            
+        {
+
         }
     }
 }

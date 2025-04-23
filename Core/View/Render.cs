@@ -6,10 +6,10 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using DotAge.Core;
+using DotAge.Core.Model;
 using Microsoft.Xna.Framework.Content;
 
-namespace DotAge.Render
+namespace DotAge.Core.View
 {
     public struct RenderProperty
     {
@@ -18,7 +18,7 @@ namespace DotAge.Render
         public Vector2 Size = new Vector2();
         public Vector2 _RBPosition = new Vector2();
         public Color TintColor = Color.White;
-        public int RenderOrder = 0;
+        public int RenderOrder = -1;
         public TextureName RenderTexture = TextureName.Empty;
         public bool Visibility = false;
         public bool Init = false;
@@ -51,8 +51,8 @@ namespace DotAge.Render
         private static Rectangle[,] Textures = new Rectangle[Width, Height];
         private const int Height = 128;
         private const int Width = 128;
-        private const int TextureHeight = 16;
-        private const int TextureWidth = 16;
+        private const int TextureHeight = 32;
+        private const int TextureWidth = 32;
         private static Dictionary<(Type, int), int> GroupTexureIndex = new Dictionary<(Type, int), int>();
         public const int ShadowIndex = 10;
 
@@ -168,5 +168,6 @@ namespace DotAge.Render
         Bullet_Yellow = 9,
         Shadow_White = 10,
         White_Ball = 11,
+        Crash_Frame = 12,
     }
 }

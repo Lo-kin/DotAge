@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DotAge.Core
+namespace DotAge.Core.Model
 {
     struct BaseIndex
     {
@@ -29,7 +29,7 @@ namespace DotAge.Core
             {
                 return false;
             }
-            
+
         }
     }
 }

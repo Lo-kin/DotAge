@@ -5,12 +5,14 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 
-namespace DotAge.Core
+namespace DotAge.Core.Model
 {
     internal class Path
     {
         private List<Vector2> Nodes = new List<Vector2>();
-        public List<Vector2> GetNodes {  get { return Nodes; } }
+        public List<Vector2> GetNodes { get { return Nodes; } }
+        public Vector2 ForceRay = new Vector2(0, 0);
+        public bool IsFollowForceRay = false;
         public bool ManualMode { get; set; } = false;
         public bool Cycle { get; set; } = true;
         public int ProcessNodeIndex { get; private set; } = 0;
@@ -19,11 +21,15 @@ namespace DotAge.Core
         public Vector2 RemainTarget { get; private set; } = new Vector2();
 
         public Vector2 CurrentDirect { get; private set; } = new Vector2();
-        
+
         public Vector2 CurrentTarget
-        { 
-            get 
+        {
+            get
             {
+                if (IsFollowForceRay == true)
+                {
+                    return ForceRay;
+                }
                 if (Nodes.Count != 0 && ProcessNodeIndex <= Nodes.Count - 1)
                 {
                     return Nodes[ProcessNodeIndex];
@@ -37,7 +43,12 @@ namespace DotAge.Core
                     return Vector2.Zero;
                 }
             }
-        } 
+            set
+            {
+
+            }
+            
+        }
 
         public Path()
         {
@@ -46,6 +57,20 @@ namespace DotAge.Core
 
         public bool Update(Vector2 Position)
         {
+            if (IsFollowForceRay == true)
+            {
+                CurrentDirect = Vector2.Normalize(ForceRay);
+                RemainLength = float.PositiveInfinity;
+                    
+                
+                return true;
+            }
+            if (Nodes.Count == 0)
+            {
+                RemainLength = 0f;
+                RemainTarget = new Vector2();
+                return false;
+            }
             if (Position == CurrentTarget)
             {
                 IsInTarget = true;
@@ -66,7 +91,7 @@ namespace DotAge.Core
 
         public bool PushNode()
         {
-            if (ProcessNodeIndex >=0 && ProcessNodeIndex <= Nodes.Count - 1)
+            if (ProcessNodeIndex >= 0 && ProcessNodeIndex <= Nodes.Count - 1)
             {
                 if (ProcessNodeIndex == Nodes.Count - 1)
                 {
@@ -78,7 +103,7 @@ namespace DotAge.Core
                 else
                 {
                     ProcessNodeIndex++;
-                    
+
                 }
                 return true;
             }
@@ -125,7 +150,7 @@ namespace DotAge.Core
                 return true;
             }
             else
-            { 
+            {
                 return false;
             }
         }

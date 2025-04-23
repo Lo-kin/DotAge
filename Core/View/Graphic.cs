@@ -1,5 +1,4 @@
-﻿using DotAge.Core;
-using DotAge.Render;
+﻿using DotAge.Core.Control;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -8,17 +7,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 
-namespace DotAge
+namespace DotAge.Core.View
 {
     public class Graphic : Game
     {
         private GraphicsDeviceManager _graphics;
+        public static Camera2D ViewCamera = new Camera2D();
         private SpriteBatch spb;
         private SpriteFont _font;
         public Texture2D[] _texture = new Texture2D[6];
-        public RenderProperty[] BufferRP = new RenderProperty[65536];
-        public List<int> EmptyRP = Enumerable.Range(0,65536).ToList();
+        public RenderProperty[] BufferRP = new RenderProperty[65536];//0,0位置显示错误推测：后端tps低导致在添加对象后还未更新对象导致 , 0位置不使用
+        public List<int> EmptyRP = Enumerable.Range(0, 65536).ToList();
         public List<int> ExistRP = new List<int>();
+        //public 
         public int[] LoadRP = Array.Empty<int>();
         private bool IsRPModified = false;
 
@@ -33,10 +34,10 @@ namespace DotAge
                 IsRPModified = true;
                 return rp.RenderOrder;
             }
-            return -1;  
+            return -1;
         }
 
-        public bool ModifyRPBuffer(int Pos , RenderProperty rp)
+        public bool ModifyRPBuffer(int Pos, RenderProperty rp)
         {
             if (rp.Init == false)
             {
@@ -73,6 +74,8 @@ namespace DotAge
 
         public Graphic()
         {
+            var tmp = new RenderProperty();
+            AddRPBuffer(ref tmp);
             _graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
@@ -81,6 +84,7 @@ namespace DotAge
         protected override void Initialize()
         {
             // TODO: Add your initialization logic here
+            ViewCamera.View = Matrix.CreateTranslation(new Vector3(0, 0, 0));
             _graphics.PreferredBackBufferWidth = 640;
             _graphics.PreferredBackBufferHeight = 480;
             _graphics.ApplyChanges();
@@ -104,22 +108,22 @@ namespace DotAge
                 Exit();
             }
             // TODO: Add your update logic here
-            if (IsRPModified == true)
+            if (IsRPModified == true)//简单的添加绘图事件
             {
                 LoadRP = ExistRP.ToArray();
                 IsRPModified = false;
             }
+            
             base.Update(gameTime);
         }
-
+        int a = 0;
         protected override void Draw(GameTime gameTime)
         {
-            
+            a++;
             GraphicsDevice.Clear(Color.Black);
-            
-            spb.Begin();
+            spb.Begin(transformMatrix:ViewCamera.View);
 
-            for (int  i = 0; i < LoadRP.Count();i++)
+            for (int i = 0; i < LoadRP.Count(); i++)
             {
                 RenderProperty TmpRP = BufferRP[LoadRP[i]];
                 if (TmpRP.Visibility == false)
@@ -128,11 +132,32 @@ namespace DotAge
                 }
                 if (TmpRP.Visibility == true)
                 {
-                    spb.Draw(_texture[1], TmpRP.RenderPosition, TextureIndex.GetTextureX(TmpRP.RenderTexture), TmpRP.TintColor);
+                    spb.Draw(_texture[1],new Rectangle( TmpRP.RenderPosition.ToPoint() , TmpRP.Size.ToPoint()), TextureIndex.GetTextureX(TmpRP.RenderTexture), TmpRP.TintColor);
                 }
-                
+
             }
-            //spb.DrawString(_font, (1 / gameTime.ElapsedGameTime.TotalSeconds).ToString() + "\n" + Engine.tessta, Vector2.Zero , Color.Red);
+            spb.End();
+            spb.Begin();
+            if (Engine.tessta.Length < 900)
+            {
+                string text = "";
+                for (int i = 4; i >= 1; i--)
+                {
+                    text += Controlers.Log[^i] + "\n";
+                }
+                text += Controlers.NowMouseStat.Position.ToString() + "\n";
+                if (!(MouseZone.Log.Count < 3))
+                {
+                    for (int i = 2; i >= 1; i--)
+                    {
+                        text += MouseZone.Log[^i] + "\n";
+                    }
+                }
+
+                spb.DrawString(_font, text, Vector2.Zero, Color.Red);
+                //Thread.Sleep(100000);
+            }
+
             spb.End();
             base.Draw(gameTime);
         }

@@ -1,4 +1,5 @@
-﻿using DotAge.Core;
+﻿using DotAge.Core.Control;
+using DotAge.Core.Model;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
@@ -9,10 +10,11 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DotAge.Core
+namespace DotAge.Core.View
 {
     static class GameData
     {
+        public static List<EntityControler> EntityControlers = new List<EntityControler>();
         public static Dictionary<int, Group> GameGroups { get; } = new Dictionary<int, Group>();
         public static int DefaultGroupID = 0;
         public static Dictionary<int, Entity> GameEntities { get; } = new Dictionary<int, Entity>();
@@ -32,14 +34,15 @@ namespace DotAge.Core
 
         public static void test()
         {
-            while (true) {
+            while (true)
+            {
                 Thread.Sleep(10000);
             }
         }
 
         public static bool AddGroup(Group group)
         {
-            
+
             if (group == null)
             {
                 return false;
@@ -86,56 +89,55 @@ namespace DotAge.Core
             }
         }
 
-        public static bool AddCreature(Creature creature)
+        public static int AddEntity(Entity _entity)
         {
-            if (creature == null)
+            if (_entity == null)
             {
-                return false;
+                return -1;
             }
             else
             {
-                if (creature.ID == -1 && EmptyCreatureID.Count != 0)
+                if (_entity.ID == -1 && EmptyCreatureID.Count != 0)
                 {
                     Random r = new Random();
                     int rn = (int)r.NextInt64(0, EmptyCreatureID.Count - 1);
-                    GameEntities.Add(EmptyCreatureID[rn], creature);
-                    creature.ID = EmptyCreatureID[rn];
+                    GameEntities.Add(EmptyCreatureID[rn], _entity);
+                    _entity.ID = EmptyCreatureID[rn];
                     EmptyCreatureID.RemoveAt(rn);
-                    AddToIndex(creature);
-                    return true;
+                    return rn;
                 }
-                else if (creature.ID >= 0 && EmptyCreatureID.Count != 0)
+                else if (_entity.ID >= 0 && EmptyCreatureID.Count != 0)
                 {
-                    if (EmptyCreatureID.Contains(creature.ID))
+                    if (EmptyCreatureID.Contains(_entity.ID))
                     {
-                        GameEntities.Add(creature.ID, creature);
-                        EmptyCreatureID.Remove(creature.ID);
+                        GameEntities.Add(_entity.ID, _entity);
+                        EmptyCreatureID.Remove(_entity.ID);
                     }
                     else
                     {
                         Random r = new Random();
                         int rn = (int)r.NextInt64(0, EmptyCreatureID.Count - 1);
-                        GameEntities.Add(EmptyCreatureID[rn], creature);
-                        creature.ID = EmptyCreatureID[rn];
+                        GameEntities.Add(EmptyCreatureID[rn], _entity);
+                        _entity.ID = EmptyCreatureID[rn];
                         EmptyCreatureID.RemoveAt(rn);
+                        return rn;
                     }
-                    AddToIndex(creature);
-                    return true;
+                    
                 }
                 else
                 {
-                    return false;
+                    return -1;
                 }
             }
-            return true;
+            return -1;
         }
 
-        public static bool RemoveCreature(int creatureID)
+        public static bool RemoveEntity(int _entityID)
         {
-            if (GameEntities.Keys.Contains(creatureID))
+            if (GameEntities.Keys.Contains(_entityID))
             {
-                GameEntities.Remove(creatureID);
-                EmptyCreatureID.Add(creatureID);
+                GameEntities.Remove(_entityID);
+                EmptyCreatureID.Add(_entityID);
                 return true;
             }
             else
@@ -143,19 +145,13 @@ namespace DotAge.Core
                 return false;
             }
         }
-
-        public static bool AddToIndex(Creature _creature)
-        {
-            bool stat = GameIndex.SetCreature(_creature);
-            return true;
-        }
     }
 
     static class GameIndex
     {
         public static Dictionary<Point, BaseIndex> GridIndex = new Dictionary<Point, BaseIndex>();
-        private static float GridBlockWidth = 32 * 16;//px
-        private static float GridBlockHeight = 32 * 16;//px
+        private static float GridBlockWidth = 32 * 32;//px
+        private static float GridBlockHeight = 32 * 32;//px
 
         static GameIndex()
         {
@@ -173,28 +169,28 @@ namespace DotAge.Core
             }
         }
 
-        public static bool BuildEmptyIndex(Vector2 _position , float _range)//Rect Index
+        public static bool BuildEmptyIndex(Vector2 _position, float _range)//Rect Index
         {
             float _xstart = _position.X - _range;
             float _ystart = _position.Y - _range;
             float _xend = _position.X + _range;
             float _yend = _position.Y + _range;
-            Point[] SEpoints = GetStartEndPoint(new Vector2(_xstart, _ystart) , new Vector2(_xend, _yend));
-            for (int _y = SEpoints[0].Y; _y <= SEpoints[1].Y  ; _y++)
+            Point[] SEpoints = GetStartEndPoint(new Vector2(_xstart, _ystart), new Vector2(_xend, _yend));
+            for (int _y = SEpoints[0].Y; _y <= SEpoints[1].Y; _y++)
             {
-                for (int  _x = SEpoints[0].X; _x <= SEpoints[1].X ; _x++)
+                for (int _x = SEpoints[0].X; _x <= SEpoints[1].X; _x++)
                 {
-                    SetIndex(_x, _y , false);
+                    SetIndex(_x, _y, false);
                 }
             }
             return true;
         }
 
-        public static Point[] GetStartEndPoint(Vector2 Start , Vector2 End)
+        public static Point[] GetStartEndPoint(Vector2 Start, Vector2 End)
         {
-            Point StartPoint = new Point((int)MathF.Floor(Start.X) , (int)MathF.Floor(Start.Y));
-            Point EndPoint = new Point((int)MathF.Floor(End.X) , (int)MathF.Floor((End.Y)));
-            return new Point[] {StartPoint , EndPoint };
+            Point StartPoint = new Point((int)MathF.Floor(Start.X), (int)MathF.Floor(Start.Y));
+            Point EndPoint = new Point((int)MathF.Floor(End.X), (int)MathF.Floor(End.Y));
+            return new Point[] { StartPoint, EndPoint };
         }
 
         public static bool CheckVaild(Point point)
@@ -206,9 +202,9 @@ namespace DotAge.Core
         {
             int _x = (int)MathF.Floor(_pos.X / GridBlockWidth);
             int _y = (int)MathF.Floor(_pos.Y / GridBlockHeight);
-            if (GridIndex.ContainsKey(new Point(_x,_y)))
+            if (GridIndex.ContainsKey(new Point(_x, _y)))
             {
-                return GridIndex[new Point(_x,_y)];
+                return GridIndex[new Point(_x, _y)];
             }
             else
             {
@@ -220,15 +216,15 @@ namespace DotAge.Core
         {
             int _xstart = (int)MathF.Floor(_rect.Left / GridBlockWidth);
             int _ystart = (int)MathF.Floor(_rect.Top / GridBlockHeight);
-            int _xend = (int)MathF.Floor(_rect.Right/ GridBlockWidth);
+            int _xend = (int)MathF.Floor(_rect.Right / GridBlockWidth);
             int _yend = (int)MathF.Floor(_rect.Bottom / GridBlockHeight);
-            BaseIndex[,] result = new BaseIndex[_xend - _xstart + 1 , _yend - _ystart + 1];
+            BaseIndex[,] result = new BaseIndex[_xend - _xstart + 1, _yend - _ystart + 1];
             //if (result)
             for (int _yi = _ystart; _yi <= _yend; _yi++)
             {
                 for (int _xi = _xstart; _xi <= _xend; _xi++)
                 {
-                    if (CheckVaild(new Point( _xi, _yi)) == true)
+                    if (CheckVaild(new Point(_xi, _yi)) == true)
                     {
                         result[_xi - _xstart, _yi - _ystart] = GridIndex[new Point(_xi, _yi)];
                     }
@@ -242,9 +238,9 @@ namespace DotAge.Core
             return result;
         }
 
-        public static BaseIndex[,] GetRangeIndex(Vector2 _position , float Range)
+        public static BaseIndex[,] GetRangeIndex(Vector2 _position, float Range)
         {
-            RectF rectF = new RectF(new Vector2(_position.X - Range , _position.Y - Range) , new Vector2(Range * 2 , Range * 2));
+            RectF rectF = new RectF(new Vector2(_position.X - Range, _position.Y - Range), new Vector2(Range * 2, Range * 2));
             return RectangleGetIndex(rectF);
         }
 
@@ -264,7 +260,7 @@ namespace DotAge.Core
                     var tmpPoint = new Point(_xi, _yi);
                     if (!GridIndex.ContainsKey(tmpPoint))
                     {
-                        SetIndex(_xi, _yi , false);
+                        SetIndex(_xi, _yi, false);
                     }
                     GridIndex[tmpPoint].CreatureIndex.Add(_ID);
                 }
@@ -272,13 +268,13 @@ namespace DotAge.Core
             return true;
         }
 
-        public static int[] SetIndex(int _x , int _y , bool ForceOverwrite)
+        public static int[] SetIndex(int _x, int _y, bool ForceOverwrite)
         {
-            if (GridIndex.ContainsKey(new Point(_x , _y)) && ForceOverwrite == true)
+            if (GridIndex.ContainsKey(new Point(_x, _y)) && ForceOverwrite == true)
             {
                 GridIndex[new Point(_x, _y)] = new BaseIndex();
             }
-            else if(!GridIndex.ContainsKey(new Point(_x, _y)))
+            else if (!GridIndex.ContainsKey(new Point(_x, _y)))
             {
                 GridIndex.Add(new Point(_x, _y), new BaseIndex());
             }

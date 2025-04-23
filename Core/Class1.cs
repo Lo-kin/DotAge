@@ -6,13 +6,7 @@ using System.Threading.Tasks;
 
 namespace DotAge.Core
 {
-    internal class Body
+    internal class Class1
     {
-
-    }
-
-    class BodyNode
-    {
-
     }
 }
