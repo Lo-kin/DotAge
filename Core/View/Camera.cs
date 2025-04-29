@@ -33,6 +33,7 @@ namespace DotAge.Core.View
         public void Move(Vector2 delta)
         {
             Position += delta;
+            View.Translation = new Vector3(Position, 0);
         }
         public void ChangeZoom(float amount)
         {

@@ -63,6 +63,20 @@ namespace DotAge.Core.Control
                 //START EXCUTE
                 if (GraphicEventAble)
                 {
+                    //测试一：将创建与销毁实体事件放在前面执行，而不是后面
+                    foreach (var item in RemoveEntityList)
+                    {
+                        RemoveEntity(item);
+                    }
+                    RemoveEntityList.Clear();
+                    foreach (var item in CreateEntityList)
+                    {
+                        CreateEntity(item);
+                        GameData.GameEntities[item.ID].BindParent(item.ParentID);
+                        //在实体中的创建子子实体的方法中就赋值了父ID
+                        //由于在创建实体后，才会分配ID，所以在这里之前进行父ID的赋值
+                    }
+                    CreateEntityList.Clear();
                     //这个引擎大量使用宏定义的设计 例如实体控制器的设计
                     //并且依赖宏去实现大多数功能
                     Controlers.Update();//先更新各个控制器的状态
@@ -77,15 +91,8 @@ namespace DotAge.Core.Control
 
                         soildre2.PhysicEntity.Position = new Vector2(320, 230);
                         soildre2.PhysicEntity.PathNodes.Cycle = false;
-                        Bullet bullet = new Bullet();
-                        if (new Vector2(GameTime * 16 % 640, 16 * MathF.Floor(GameTime * 16 / 480) % 480) == new Vector2())
-                        {
-                            //soildre1.PhysicEntity.PathNodes.AddNode(new Vector2(16, 16));
-                        }
-                        //soildre1.PhysicEntity.PathNodes.AddNode(new Vector2(GameTime * 16 % 640, 16 * MathF.Floor(GameTime * 16 / 480) % 480));
                         int _realID1 = CreateEntity(soildre1);
                         CreateEntity(soildre2);
-                        CreateEntity(bullet);
                         EntityControler entityControler = new EntityControler();
                         entityControler.BindEntity = _realID1;
                         GameData.EntityControlers.Add(entityControler);
@@ -111,10 +118,6 @@ namespace DotAge.Core.Control
                         item.EndFrame();
                         GameData.GameEntities[item.BindEntity].InvokeDelegates();
                     }
-                    
-
-
-
 
                     foreach (var item in GameData.GameEntities.Values)
                     {
@@ -128,27 +131,15 @@ namespace DotAge.Core.Control
                         }
                         //处理实体状态先进行期望处理，在经过物理处理，游戏处理之后进行数据处理，最后的实际渲染处理
                         item.PhysicEntity.UpdateWish();
-
                         item.PhysicEntity.Update();
                         item.UpdatePosition();
+                        item.UpdateSize();
 
                         ModifyRenderGroups(item);
                     }
                     //tessta = GameData.GameEntities.Values.ToArray()[0].GameEntity.Money;
 
-                    foreach (var item in RemoveEntityList)
-                    {
-                        RemoveEntity(item);
-                    }
-                    RemoveEntityList.Clear();
-                    foreach (var item in CreateEntityList)
-                    {
-                        CreateEntity(item);
-                        GameData.GameEntities[item.ID].BindParent(item.ParentID);
-                        //在实体中的创建子子实体的方法中就赋值了父ID
-                        //由于在创建实体后，才会分配ID，所以在这里之前进行父ID的赋值
-                    }
-                    CreateEntityList.Clear();
+
 
                     GameTime++;
                 }

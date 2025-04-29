@@ -85,8 +85,8 @@ namespace DotAge.Core.View
         {
             // TODO: Add your initialization logic here
             ViewCamera.View = Matrix.CreateTranslation(new Vector3(0, 0, 0));
-            _graphics.PreferredBackBufferWidth = 640;
-            _graphics.PreferredBackBufferHeight = 480;
+            _graphics.PreferredBackBufferWidth = GameSetting.ScreenWidth;
+            _graphics.PreferredBackBufferHeight = GameSetting.ScreenHeight;
             _graphics.ApplyChanges();
             base.Initialize();
 
@@ -96,7 +96,8 @@ namespace DotAge.Core.View
         {
             spb = new SpriteBatch(GraphicsDevice);
             _texture[0] = Content.Load<Texture2D>("default_texture");
-            _texture[1] = Content.Load<Texture2D>("Texture");
+            _texture[1] = Content.Load<Texture2D>("Character");
+            _texture[2] = Content.Load<Texture2D>("Status");
             _font = Content.Load<SpriteFont>("Default");
             // TODO: use this.Content to load your game content here
         }
@@ -153,6 +154,7 @@ namespace DotAge.Core.View
                         text += MouseZone.Log[^i] + "\n";
                     }
                 }
+                text += "Mouse Postion : " + Controlers.CurrentMapMousePosition.ToString() + "\n";
 
                 spb.DrawString(_font, text, Vector2.Zero, Color.Red);
                 //Thread.Sleep(100000);

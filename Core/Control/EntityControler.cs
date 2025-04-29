@@ -50,7 +50,7 @@ namespace DotAge.Core.Control
             ControlerFunc _leftmouse = new ControlerFunc()
             {
                 BindMouseButton = MouseButton.Left,
-                ControlerFuncDelegate = () => { return Target(Controlers.NowMouseStat.Position.ToVector2()); },
+                ControlerFuncDelegate = () => { return Target(Controlers.CurrentMapMousePosition.ToVector2()); },
                 ControlerFuncescription = "Target To Position"
             };
             ControlerFunc _rightmouse = new ControlerFunc()
@@ -59,7 +59,6 @@ namespace DotAge.Core.Control
                 ControlerFuncDelegate = () => { return ExcuteFunc(() => { return GameData.GameEntities[BindEntity].CreateChild(new Bullet()); }); },
                 ControlerFuncescription = "Target To Position"
             };
-
             RegisterKey(_up);
             RegisterKey(_down);
             RegisterKey(_left);

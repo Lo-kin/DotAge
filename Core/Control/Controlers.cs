@@ -2,7 +2,6 @@
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -21,6 +20,14 @@ namespace DotAge.Core.Control
         public static MouseState NowMouseStat = new MouseState();
         public static Dictionary<MouseButton , TwoStat> ChangeMouseStat = new Dictionary<MouseButton, TwoStat>();
         public static List<string> Log = new List<string>();
+        public static Point CurrentMapMousePosition
+        { 
+            get
+            {
+                return NowMouseStat.Position - Graphic.ViewCamera.Position.ToPoint();
+            }
+               
+        }
 
         static Controlers()
         {
@@ -129,29 +136,29 @@ namespace DotAge.Core.Control
             PositionTrigger _moveLeft = new PositionTrigger()
             {
                 Description = "Screen Move To Left",
-                TriggerZone = new RectF(new Vector2(0,0) , new Vector2(100,300)),
-                TriggerDelegate = () => { Graphic.ViewCamera.View.Translation += new Vector3(1, 0, 0); ; return true; }
+                TriggerZone = new Margin(0,0,GameSetting.ScreenWidth - 100,0).ToRectF(),
+                TriggerDelegate = () => { Graphic.ViewCamera.Move(new Vector2(1, 0)) ; return true; }
 
             };
             PositionTrigger _moveRight = new PositionTrigger()
             {
                 Description = "Screen Move To Right",
-                TriggerZone = new RectF(new Vector2(400, 0), new Vector2(100, 300)),
-                TriggerDelegate = () => { Graphic.ViewCamera.View.Translation += new Vector3(-1, 0, 0); ; return true; }
+                TriggerZone = new Margin(GameSetting.ScreenWidth - 100, 0, 0, 0).ToRectF(),
+                TriggerDelegate = () => { Graphic.ViewCamera.Move(new Vector2(-1, 0)) ; return true; }
 
             };
             PositionTrigger _moveTop = new PositionTrigger()
             {
                 Description = "Screen Move To Top",
-                TriggerZone = new RectF(new Vector2(0, 0), new Vector2(600, 200)),
-                TriggerDelegate = () => { Graphic.ViewCamera.View.Translation += new Vector3(0, 1, 0); ; return true; }
+                TriggerZone = new Margin(0, 0, 0 ,GameSetting.ScreenHeight - 100).ToRectF(),
+                TriggerDelegate = () => { Graphic.ViewCamera.Move(new Vector2(0, 1)) ; return true; }
 
             };
             PositionTrigger _moveBottom = new PositionTrigger()
             {
                 Description = "Screen Move To Bottom",
-                TriggerZone = new RectF(new Vector2(0, 500), new Vector2(600, 100)),
-                TriggerDelegate = () => { Graphic.ViewCamera.View.Translation += new Vector3(0, -1, 0); ; return true; }
+                TriggerZone = new Margin(0, GameSetting.ScreenHeight - 100, 0 , 0).ToRectF(),
+                TriggerDelegate = () => { Graphic.ViewCamera.Move(new Vector2(0, -1)) ; return true; }
 
             };
             Trigger.Add(_moveTop);

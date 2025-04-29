@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -12,166 +13,6 @@ using System.Threading.Tasks;
 
 namespace DotAge.Core.Model
 {
-    class Group
-    {
-        public string Name { get; set; }
-        public int ID { get; set; }
-        public Color TintColor { get; set; } = Color.White;
-        public int FlagTexutre;
-        public List<int> IncludeCreatures { get; set; } = new List<int>();
-
-        public bool JoinCreature(ref Creature creature)
-        {
-            if (creature == null)
-            {
-                return false;
-            }
-            else
-            {
-                IncludeCreatures.Add(IncludeCreatures.Count);
-                return true;
-            }
-
-        }
-    }
-
-    struct Ray
-    {
-        public Vector2 Position;
-        public Vector2 Direct;
-    }
-
-    struct RectF
-    {
-        public float Right { get { return Position.X + Size.X; } }
-        public float Left { get { return Position.X; } }
-        public float Top { get { return Position.Y; } }
-        public float Bottom { get { return Position.Y + Size.Y; } }
-        public Vector2 Center { get { return (Position + Size) / 2; } }
-        public Vector2 Position { get; set; } = new Vector2();
-        public Vector2 Size { get; set; } = new Vector2();
-
-        public static RectF CombineRectangel(RectF rect1, RectF rect2)
-        {
-            float _xL = MathF.Min(rect1.Left, rect2.Left);
-            float _xR = MathF.Max(rect1.Right, rect2.Right);
-            float _yT = MathF.Min(rect1.Top, rect2.Top);
-            float _yB = MathF.Max(rect1.Bottom, rect2.Bottom);
-            return new RectF(_xL, _yT, _xR, _yB);
-        }
-
-        public static RectF ExpandRectangel(RectF rect, Vector2 expandVec)
-        {
-            float _xL = Math.Min(rect.Position.X, rect.Position.X + expandVec.X);
-            float _xR = Math.Max(rect.Position.X + rect.Size.X, rect.Position.X + rect.Size.X + expandVec.X);
-            float _yT = Math.Min(rect.Position.Y, rect.Position.Y + expandVec.Y);
-            float _yB = Math.Max(rect.Position.Y + rect.Size.Y, rect.Position.Y + rect.Size.Y + expandVec.Y);
-            return new RectF(_xL, _yT, _xR, _yB);
-        }
-
-        public static (CrashInfo, CrashInfo) Direction(RectF rect1, RectF rect2)
-        {
-            (CrashInfo, CrashInfo) result = (new CrashInfo(), new CrashInfo());
-            if (rect1.Center.X > rect2.Center.X)
-            {
-                result.Item1.XCrashDirecton = -1;
-            }
-            else if (rect1.Center.X < rect2.Center.X)
-            {
-                result.Item1.XCrashDirecton = 1;
-            }
-            else
-            {
-                result.Item1.XCrashDirecton = 0;
-            }
-            if (rect1.Center.Y > rect2.Center.Y)
-            {
-                result.Item1.YCrashDirecton = -1;
-            }
-            else if (rect1.Center.Y < rect2.Center.Y)
-            {
-                result.Item1.YCrashDirecton = 1;
-            }
-            else
-            {
-                result.Item1.YCrashDirecton = 0;
-            }
-            result.Item2 = result.Item1.GetNegative();
-            return result;
-
-        }
-
-        public RectF(Vector2 _position, Vector2 _size)
-        {
-            Position = _position;
-            Size = _size;
-        }
-
-        public RectF(float _left, float _top, float _right, float _bottom)
-        {
-            Position = new Vector2(_left, _top);
-            Size = new Vector2(_right - _left, _bottom - _top);
-        }
-
-        public static Vector2 ContainCount(RectF rect1, RectF rect2)
-        {
-            Vector2 xyContain = new Vector2();
-            if (IsContain(rect1, rect2) == true)
-            {
-                RectF TwoRect = CombineRectangel(rect1, rect2);
-                xyContain.X = -TwoRect.Size.X + rect1.Size.X + rect2.Size.X;
-                xyContain.Y = -TwoRect.Size.Y + rect1.Size.Y + rect2.Size.Y;
-            }
-            return xyContain;
-        }
-
-        public static bool IsContain(RectF rect1, Vector2 point)
-        {
-            bool stat = false;
-            if (point.X > rect1.Left && point.X < rect1.Right && point.Y > rect1.Top && point.Y < rect1.Bottom)
-            {
-                stat = true;
-            }
-            return stat;
-        }
-
-        public static bool IsContain(RectF rect1, RectF rect2)
-        {
-            bool stat = false;
-            if (rect1.Right > rect2.Left && rect1.Left < rect2.Right && rect1.Bottom > rect2.Top && rect1.Top < rect2.Bottom)
-            {
-                stat = true;
-            }
-            return stat;
-        }
-
-
-        public RectF TestMove(Vector2 Vec)
-        {
-            RectF tmp = this;
-            tmp.Move(Vec);
-            return tmp;
-        }
-
-        public RectF TestMove(Vector2 Speed, int Time)
-        {
-            RectF tmp = this;
-            tmp.Move(Speed * Time);
-            return tmp;
-        }
-
-        public bool Move(Vector2 Vec)
-        {
-            Position += Vec;
-            return true;
-        }
-
-        public bool ChangeSize(Vector2 Vec)
-        {
-            Size += Vec;
-            return true;
-        }
-    }
 
     class GameEntity
     {
@@ -179,6 +20,7 @@ namespace DotAge.Core.Model
         public Ray ShootingPostion { get; set; }
         public string Name { get; set; }
         public bool Visibility { get; set; } = true;
+        public bool IsRenderFollowCrashbox { get; set; } = false;
         public int Money = 0;
 
         public float SetHealth(float _health)
@@ -215,21 +57,51 @@ namespace DotAge.Core.Model
 
         public RenderEntity()
         {
-
+            InitialCanvas(16);
         }
 
-        public bool UpdatePosition(Vector2 Position, Vector2 Size)
+        public RenderEntity(int CanvasCount)
+        {
+            InitialCanvas(CanvasCount);
+        }
+
+        public bool InitialCanvas(int CanvasCount)
+        {
+            if (CanvasCount <= 0)
+            {
+                return false;
+            }
+            else
+            {
+                RenderCanvas = new RenderProperty[CanvasCount];
+                EmptyCanvas = Enumerable.Range(0, CanvasCount - 1).ToArray();
+                return true;
+            }
+        }
+
+        public bool UpdatePosition(Vector2 Position)
         {
             RenderPosition = Position;
+            for (int i = 0; i < RenderCanvas.Length; i++)
+            {
+                if (RenderCanvas[i].Init == true)
+                {
+                    RenderCanvas[i].ActualPosition = RenderPosition;
+                }
+
+            }
+            return true;
+        }
+
+        public bool UpdateSize(Vector2 Size)
+        {
             RenderSize = Size;
             for (int i = 0; i < RenderCanvas.Length; i++)
             {
                 if (RenderCanvas[i].Init == true)
                 {
-                    RenderCanvas[i].RenderPosition = RenderCanvas[i].RalativePosition + RenderPosition;
                     RenderCanvas[i].Size = RenderSize;
                 }
-
             }
             return true;
         }
@@ -264,7 +136,7 @@ namespace DotAge.Core.Model
         {
             if (EmptyCanvas.Contains(Index) == true || Index >= 0 && Index < RenderCanvas.Length)
             {
-                RenderCanvas[Index].RalativePosition = Position;
+                RenderCanvas[Index].Offset = Position;
                 return true;
             }
             return true;
@@ -280,7 +152,7 @@ namespace DotAge.Core.Model
                     RenderTexture = name,
                     Visibility = true,
                     TintColor = Color.White,
-                    RenderPosition = new Vector2(0, 0),
+                    Offset = new Vector2(0, 0),
                     Size = RenderSize,
                 };
             }
@@ -298,7 +170,7 @@ namespace DotAge.Core.Model
                     RenderTexture = name,
                     Visibility = true,
                     TintColor = Color.White,
-                    RenderPosition = new Vector2(0, 0),
+                    Offset = new Vector2(0, 0),
                     Size = RenderSize,
                 };
             }
@@ -425,121 +297,53 @@ namespace DotAge.Core.Model
         }
     }
 
-    struct CrashInfo
-    {
-        public int XCrashDirecton { get; set; }
-        public int YCrashDirecton { get; set; }
-
-        public (Direction, Direction) Direct
+    class ChainRenderEntity
+    {//想象一条链子，由链接点与链接物体构成，
+        public Vector2 ChainPoint = new Vector2();
+        public Vector2 EndChainpoint = new Vector2();
+        public Vector2 UniformPosition = new Vector2();
+        public Vector2 UniformSize = new Vector2(32, 32);
+        public RectF ChainBox
         {
             get
             {
-                Direction directionx;
-                Direction directiony;
-                if (XCrashDirecton == -1)
-                {
-                    directionx = Direction.Left;
-                }
-                else if (XCrashDirecton == 1)
-                {
-                    directionx = Direction.Right;
-                }
-                else
-                {
-                    directionx = Direction.Middle;
-                }
-                if (YCrashDirecton == -1)
-                {
-                    directiony = Direction.Top;
-                }
-                else if (YCrashDirecton == 1)
-                {
-                    directiony = Direction.Bottom;
-                }
-                else
-                {
-                    directiony = Direction.Middle;
-                }
-                return (directionx, directiony);
-            }
-            set
-            {
-                if (value.Item1 == Direction.Left)
-                {
-                    XCrashDirecton = -1;
-                }
-                else if (value.Item1 == Direction.Right)
-                {
-                    XCrashDirecton = 1;
-                }
-                else
-                {
-                    XCrashDirecton = 0;
-                }
-                if (value.Item2 == Direction.Top)
-                {
-                    YCrashDirecton = -1;
-                }
-                else if (value.Item2 == Direction.Bottom)
-                {
-                    YCrashDirecton = 1;
-                }
-                else
-                {
-                    YCrashDirecton = 0;
-                }
+                return new RectF(UniformPosition, UniformSize);
             }
         }
+        public RenderProperty[] RenderCanvas = new RenderProperty[16];
 
-        public void Negative()
+        public ChainRenderEntity(int CanvasCount = 16)
         {
-            XCrashDirecton *= -1;
-            YCrashDirecton *= -1;
+            InitialCanvas(CanvasCount);
         }
 
-        public CrashInfo GetNegative()
+        public bool InitialCanvas(int CanvasCount)
         {
-            CrashInfo tmp = this;
-            tmp.XCrashDirecton *= -1;
-            tmp.YCrashDirecton *= -1;
-            return tmp;
+            if (CanvasCount <= 0)
+            {
+                RenderCanvas = new RenderProperty[16];
+                return false;
+            }
+            else
+            {
+                RenderCanvas = new RenderProperty[CanvasCount];
+                return true;
+            }
         }
-    }
 
-
-    static class VectorHelper
-    {
-        public static Vector2 Direct(Vector2 vector)
+        public bool SetUniform(Vector2 Position, Vector2 Size)
         {
-            Vector2 result = new Vector2();
-
-            if (vector.X > 0)
+            UniformPosition = Position;
+            UniformSize = Size;
+            for (int i = 0; i < RenderCanvas.Length; i++)
             {
-                result.X = 1;
+                if (RenderCanvas[i].Init == true)
+                {
+                    RenderCanvas[i].Offset = UniformPosition;
+                    RenderCanvas[i].Size = UniformSize;
+                }
             }
-            else if (vector.X < 0)
-            {
-                result.X = -1;
-            }
-            if (vector.Y > 0)
-            {
-                result.Y = 1;
-            }
-            else if (vector.Y < 0)
-            {
-                result.Y = -1;
-            }
-            return result;
+            return true;
         }
-    }
-
-    enum Direction
-    {
-        Middle = 0,
-        Top = 1,
-        Right = 2,
-        Bottom = 3,
-        Left = 4
-
     }
 }

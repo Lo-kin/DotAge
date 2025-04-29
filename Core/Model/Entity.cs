@@ -26,6 +26,11 @@ namespace DotAge.Core.Model
         public RenderEntity RenderEntity { get; set; } = new RenderEntity();//V
         public GameEntity GameEntity { get; set; } = new GameEntity();//C
 
+        public Entity()
+        {
+
+        }
+
         public Type GetEntityType()
         {
             return GetType();
@@ -33,8 +38,23 @@ namespace DotAge.Core.Model
 
         public virtual bool UpdatePosition()
         {
-            RenderEntity.UpdatePosition(PhysicEntity.Position, PhysicEntity.Size);
+            RenderEntity.UpdatePosition(PhysicEntity.Position);
             return false;
+        }
+
+        public virtual bool UpdateSize()
+        {
+            if (GameEntity.IsRenderFollowCrashbox == true)
+            {
+                RenderEntity.UpdateSize(PhysicEntity.Size);
+            }
+            return false;
+        }
+
+        public virtual bool Update()//整合更新安排的事件
+        {
+
+            return true;
         }
 
         public bool BindChild(int _childID)
@@ -87,6 +107,11 @@ namespace DotAge.Core.Model
             {
                 return false;
             }
+            Ray _rayForce = new Ray();
+            _rayForce.Position = PhysicEntity.Position;
+            _rayForce.Direct = Controlers.CurrentMapMousePosition.ToVector2() - PhysicEntity.Position;
+            _child.PhysicEntity.PathNodes.ForceRay = _rayForce.Direct;
+            _child.PhysicEntity.Position = PhysicEntity.Position;
             _child.ParentID = ID;
             Engine.CreateEntityList.Add(_child);
             return true;
@@ -183,17 +208,20 @@ namespace DotAge.Core.Model
 
     class Bullet : Entity
     {
-        public int PierceCount = 1;
+        public int PierceCount = 1000;
         public float Damage = 10;
 
         public Bullet()
         {
-            PhysicEntity.Size = new Vector2(16, 16);
-            RenderEntity.ChangeFront(TextureName.Bullet_Yellow);
-            RenderEntity.ChangeBackground(TextureName.Crash_Frame);
+            GameEntity.IsRenderFollowCrashbox = true;
+            PhysicEntity.Size = new Vector2(4, 4);
+
+            //RenderEntity.RenderSize = new Vector2(16, 16);
+            RenderEntity.ChangeFront(TextureName.Wihte_Ball);
+            RenderEntity.RenderCanvas[^1].TintColor = Color.Gray;
+            //RenderEntity.ChangeBackground(TextureName.Crash_Frame);
 
             PhysicEntity.PathNodes.IsFollowForceRay = true;
-            PhysicEntity.PathNodes.ForceRay = new Vector2(1, 1);
             PhysicEntity.PathNodes.Cycle = false;
         }
 

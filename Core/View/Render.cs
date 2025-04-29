@@ -13,8 +13,10 @@ namespace DotAge.Core.View
 {
     public struct RenderProperty
     {
-        public Vector2 RalativePosition = new Vector2();
-        public Vector2 RenderPosition = new Vector2();
+        public Vector2 Offset = new Vector2();
+        public Vector2 ActualPosition = new Vector2();
+        public Vector2 RenderPosition { get { return Offset + ActualPosition; } }
+
         public Vector2 Size = new Vector2();
         public Vector2 _RBPosition = new Vector2();
         public Color TintColor = Color.White;
@@ -26,9 +28,9 @@ namespace DotAge.Core.View
 
         public RenderProperty(Vector2 _position, Vector2 _size, TextureName _texture)
         {
-            RalativePosition = _position;
+            Offset = _position;
             Size = _size;
-            _RBPosition = RalativePosition + Size;
+            _RBPosition = Offset + Size;
             RenderTexture = _texture;
             Init = true;
         }
@@ -41,37 +43,35 @@ namespace DotAge.Core.View
             Vector2 vector2 = new Vector2();
             var c = vector2 * 2;
         }
-
-
     }
 
-
-    public static class TextureIndex
+    public struct TextureProperty
     {
-        private static Rectangle[,] Textures = new Rectangle[Width, Height];
-        private const int Height = 128;
-        private const int Width = 128;
-        private const int TextureHeight = 32;
-        private const int TextureWidth = 32;
-        private static Dictionary<(Type, int), int> GroupTexureIndex = new Dictionary<(Type, int), int>();
-        public const int ShadowIndex = 10;
-
-        static TextureIndex()
+        public string Description = "";
+        public int TextureWidth = 0;
+        public int TextureHeight = 0;
+        public int UnitWidth = 0;
+        public int UnitHeight = 0;
+        public int WidthCount { get { return TextureWidth / UnitWidth; } }
+        public int HeightCount { get { return TextureHeight / UnitHeight; } }
+        public Rectangle[,] Textures = new Rectangle[,] { };
+        public TextureProperty(int _textureWidth , int _textureHeight , int _unitWidth , int _unitHeight)
         {
-            for (int i = 0; i < Textures.GetLength(1); i++)
-            {
-                for (int j = 0; j < Textures.GetLength(0); j++)
-                {
-                    Textures[j, i] = new Rectangle(j * TextureWidth, i * TextureHeight, TextureWidth, TextureHeight);
-                }
-            }
-            SetGroupUniformTexture(0, new Soildre().GetType(), 8, true);
-            SetGroupUniformTexture(0, new Turret().GetType(), 7, true);
+            TextureHeight = _textureHeight;
+            TextureWidth = _textureWidth;
+            UnitHeight = _unitHeight;
+            UnitWidth = _unitWidth;
         }
 
-        public static Rectangle? GetTextureXY(int _width = Width - 1, int _height = Height - 1)
+        public bool InitTextures()
         {
-            if (_height < 0 || _width < 0 || _height >= Height || _width >= Width)
+            Textures = new Rectangle[WidthCount, HeightCount];
+            return true;
+        }
+
+        public Rectangle? GetTextureXY(int _width, int _height)
+        {
+            if (_height < 0 || _width < 0 || _height >= HeightCount || _width >= WidthCount)
             {
                 return null;
             }
@@ -81,23 +81,93 @@ namespace DotAge.Core.View
             }
         }
 
-        public static Rectangle? GetTextureX(int _x)
+        public Rectangle? GetTextureX(int _x)
         {
-            return GetTextureXY(_x % Width, (int)MathF.Floor(_x / Width));
+            return GetTextureXY(_x % WidthCount, (int)MathF.Floor(_x / WidthCount));
         }
 
-        public static Rectangle? GetTextureX(TextureName name)
+        public Rectangle? GetTextureX(TextureName name)
         {
             int _x = (int)name;
-            return GetTextureXY(_x % Width, (int)MathF.Floor(_x / Width));
+            return GetTextureXY(_x % WidthCount, (int)MathF.Floor(_x / WidthCount));
+        }
+
+        public bool CheckIndexVaild(int Index)
+        {
+            if (Index < 0 || Index > WidthCount * HeightCount - 1)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        public enum TextureName
+        {
+            MissingTexture = 0,
+            Block_White = 1,
+            Empty = 2,
+            Mine_Stone = 3,
+            Mine_Gold = 4,
+            Mine_Coal = 5,
+            Tree = 6,
+            Turret_Gun = 7,
+            Human_Engineer = 8,
+            Bullet_Yellow = 9,
+            Shadow_White = 10,
+            White_EightSIde = 11,
+            Crash_Frame = 12,
+            Wihte_Ball = 13,
+        }
+
+    }
+
+
+    public static class TextureIndex
+    {
+        private static Dictionary<string , TextureProperty> LoadedTextures = new Dictionary<string, TextureProperty>();
+        private static Dictionary<(Type, int), int> GroupTexureIndex = new Dictionary<(Type, int), int>();
+
+        static TextureIndex()
+        {
+            LoadTexture("Character", 2048, 2048, 32, 32);
+            LoadTexture("Status", 512, 512, 32, 32);
+            SetGroupUniformTexture(0, new Soildre().GetType(), 8, true);
+            SetGroupUniformTexture(0, new Turret().GetType(), 7, true);
+        }
+
+        public static bool LoadTexture(string TextureName, int TextureWidth, int TextureHeight, int UnitWidth , int UnitHeight)
+        {
+            if (LoadedTextures.ContainsKey(TextureName))
+            {
+                return false;
+            }
+            else
+            {
+                if (TextureWidth % UnitWidth != 0 || TextureHeight % UnitHeight != 0)
+                {
+                    return false;
+                }
+
+                var _tmpTextureProperty = new TextureProperty(TextureWidth, TextureHeight, UnitWidth, UnitHeight);
+                _tmpTextureProperty.Description = "Texture Name : " + TextureName;
+                _tmpTextureProperty.InitTextures();
+                LoadedTextures[TextureName] = _tmpTextureProperty;
+                for (int i = 0; i < LoadedTextures[TextureName].HeightCount; i++)
+                {
+                    for (int j = 0; j < LoadedTextures[TextureName].WidthCount; j++)
+                    {
+                        LoadedTextures[TextureName].Textures[j, i] = new Rectangle(UnitWidth * j, UnitHeight * i, TextureWidth, TextureHeight);
+                    }
+                }
+                return true;
+            }
         }
 
         public static bool SetGroupUniformTexture(int GroupID, Type ObjType, int TextureIndex, bool ForceOverwrite)
         {
-            if (!CheckIndexVaild(TextureIndex))
-            {
-                return false;
-            }
             if (GroupTexureIndex.ContainsKey((ObjType, GroupID)) && ForceOverwrite == true || !GroupTexureIndex.ContainsKey((ObjType, GroupID)))
             {
                 GroupTexureIndex[(ObjType, GroupID)] = TextureIndex;
@@ -134,17 +204,6 @@ namespace DotAge.Core.View
 
         }
 
-        public static bool CheckIndexVaild(int Index)
-        {
-            if (Index < 0 || Index > Width * Height - 1)
-            {
-                return false;
-            }
-            else
-            {
-                return true;
-            }
-        }
 
         public static bool AddAnimation()
         {
@@ -167,7 +226,8 @@ namespace DotAge.Core.View
         Human_Engineer = 8,
         Bullet_Yellow = 9,
         Shadow_White = 10,
-        White_Ball = 11,
+        White_EightSIde = 11,
         Crash_Frame = 12,
+        Wihte_Ball = 13,
     }
 }
