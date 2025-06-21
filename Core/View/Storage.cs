@@ -1,5 +1,6 @@
 ﻿using DotAge.Core.Control;
 using DotAge.Core.Model;
+using DotAge.Core.Model.Delegates;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
@@ -15,6 +16,7 @@ namespace DotAge.Core.View
     static class GameData
     {
         public static List<EntityControler> EntityControlers = new List<EntityControler>();
+        public static EntityControler MainControler = new EntityControler();
         public static Dictionary<int, Group> GameGroups { get; } = new Dictionary<int, Group>();
         public static int DefaultGroupID = 0;
         public static Dictionary<int, Entity> GameEntities { get; } = new Dictionary<int, Entity>();
@@ -23,20 +25,31 @@ namespace DotAge.Core.View
         public static List<int> EmptyCreatureID = Enumerable.Range(0, MaxGameCreature).ToList();
         public static List<int> EmptyGroupID = Enumerable.Range(0, MaxGameGroup).ToList();
 
+        public static Dictionary<int , UIElement> UIElements = new Dictionary<int, UIElement>();
+        public static Dictionary<Point , List<Terrain>> GameMaps = new Dictionary<Point, List<Terrain>>();
+
+        public static List<ZoneEntity> ZoneEntities = new List<ZoneEntity>();
+
         static GameData()
         {
-            Thread thread = new(() => { test(); })
-            {
-                Name = "test"
-            };
-            //thread.Start();
+            Thread thread = new(() => { while (true) { Thread.Sleep(10000); }; }){Name = "test"};
+            thread.Start();
         }
 
-        public static void test()
+        public static bool AddControler(EntityControler _controler)
         {
-            while (true)
+            if (_controler == null)
             {
-                Thread.Sleep(10000);
+                return false;
+            }
+            else
+            {
+                if (EntityControlers.Count == 0)
+                {
+                    MainControler = _controler;
+                }
+                EntityControlers.Add(_controler);
+                return true;
             }
         }
 
@@ -97,39 +110,39 @@ namespace DotAge.Core.View
             }
             else
             {
-                if (_entity.ID == -1 && EmptyCreatureID.Count != 0)
+                if (_entity.ID >= -1 && _entity.ID < MaxGameCreature)
                 {
-                    Random r = new Random();
-                    int rn = (int)r.NextInt64(0, EmptyCreatureID.Count - 1);
-                    GameEntities.Add(EmptyCreatureID[rn], _entity);
-                    _entity.ID = EmptyCreatureID[rn];
-                    EmptyCreatureID.RemoveAt(rn);
-                    return rn;
-                }
-                else if (_entity.ID >= 0 && EmptyCreatureID.Count != 0)
-                {
-                    if (EmptyCreatureID.Contains(_entity.ID))
+                    if (EmptyCreatureID.Count == 0)
+                    {
+                        return -1;
+                    }
+                    if (_entity.ID == -1 || !EmptyCreatureID.Contains(_entity.ID))
+                    {
+                        int rn = (int)Random.Shared.NextInt64(0, EmptyCreatureID.Count - 1);
+                        GameEntities.Add(EmptyCreatureID[rn], _entity);
+                        _entity.ID = EmptyCreatureID[rn];
+                        EmptyCreatureID.RemoveAt(rn);
+                    }
+                    else
                     {
                         GameEntities.Add(_entity.ID, _entity);
                         EmptyCreatureID.Remove(_entity.ID);
                     }
-                    else
-                    {
-                        Random r = new Random();
-                        int rn = (int)r.NextInt64(0, EmptyCreatureID.Count - 1);
-                        GameEntities.Add(EmptyCreatureID[rn], _entity);
-                        _entity.ID = EmptyCreatureID[rn];
-                        EmptyCreatureID.RemoveAt(rn);
-                        return rn;
-                    }
-                    
+                    GameIndex.SetEntity(_entity);
+                    return _entity.ID;
                 }
                 else
                 {
                     return -1;
                 }
             }
-            return -1;
+        }
+
+        public static int AddUIElement(UIElement _ui)
+        {
+            int t = (int)Random.Shared.NextInt64(0, 1024);
+            UIElements.Add(t, _ui);
+            return t;
         }
 
         public static bool RemoveEntity(int _entityID)
@@ -158,7 +171,7 @@ namespace DotAge.Core.View
             BuildEmptyIndex(new Vector2(), 2);
             Thread thread = new Thread(() => { test(); });
             thread.Name = "test1";
-            //thread.Start();
+            thread.Start();
         }
 
         public static void test()
@@ -212,13 +225,13 @@ namespace DotAge.Core.View
             }
         }
 
-        public static BaseIndex[,] RectangleGetIndex(RectF _rect)
+        public static Dictionary<Point , BaseIndex> RectangleGetIndex(RectF _rect)
         {
             int _xstart = (int)MathF.Floor(_rect.Left / GridBlockWidth);
             int _ystart = (int)MathF.Floor(_rect.Top / GridBlockHeight);
             int _xend = (int)MathF.Floor(_rect.Right / GridBlockWidth);
             int _yend = (int)MathF.Floor(_rect.Bottom / GridBlockHeight);
-            BaseIndex[,] result = new BaseIndex[_xend - _xstart + 1, _yend - _ystart + 1];
+            Dictionary<Point, BaseIndex> result = new Dictionary<Point, BaseIndex>();
             //if (result)
             for (int _yi = _ystart; _yi <= _yend; _yi++)
             {
@@ -226,29 +239,55 @@ namespace DotAge.Core.View
                 {
                     if (CheckVaild(new Point(_xi, _yi)) == true)
                     {
-                        result[_xi - _xstart, _yi - _ystart] = GridIndex[new Point(_xi, _yi)];
+                        result.Add(new Point(_xi, _yi) , GridIndex[new Point(_xi, _yi)]);
                     }
                     else
                     {
                         GridIndex[new Point(_xi, _yi)] = new BaseIndex();
-                        result[_xi - _xstart, _yi - _ystart] = GridIndex[new Point(_xi, _yi)];
+                        result.Add(new Point(_xi, _yi), GridIndex[new Point(_xi, _yi)]);
                     }
                 }
             }
             return result;
         }
 
-        public static BaseIndex[,] GetRangeIndex(Vector2 _position, float Range)
+        public static Dictionary<Point, BaseIndex> GetRangeIndex(Vector2 _position, float Range)
         {
             RectF rectF = new RectF(new Vector2(_position.X - Range, _position.Y - Range), new Vector2(Range * 2, Range * 2));
             return RectangleGetIndex(rectF);
         }
 
-        public static bool SetCreature(Creature _creature)
+        public static bool UpdateEntity(int _entityID)
         {
-            int _ID = _creature.ID;
-            var _Size = _creature.PhysicEntity.Size;
-            var _Position = _creature.PhysicEntity.Position;
+            foreach (var item in GameData.GameEntities[_entityID].MapIndexes)
+            {
+                GridIndex[item].EntityIndex.Remove(_entityID);
+            }
+            GameData.GameEntities[_entityID].MapIndexes = new List<Point>();
+            SetEntity(GameData.GameEntities[_entityID]);
+            return true;
+        }
+
+        public static bool BindIndexToEntity(int _entityID, Point _indexPoint)
+        {
+            if (GridIndex.ContainsKey(_indexPoint))
+            {
+                if (!GridIndex[_indexPoint].EntityIndex.Contains(_entityID))
+                {
+                    GridIndex[_indexPoint].EntityIndex.Add(_entityID);
+                    
+                }
+                GameData.GameEntities[_entityID].AddMapIndex(_indexPoint);
+                return true;
+            }
+            return false;
+        }
+
+        public static bool SetEntity(Entity _entity)
+        {
+            int _ID = _entity.ID;
+            var _Size = _entity._physicEntity.Size;
+            var _Position = _entity._physicEntity.Position;
             int _xstart = (int)MathF.Floor(_Position.X / GridBlockWidth);
             int _ystart = (int)MathF.Floor(_Position.Y / GridBlockHeight);
             int _xend = (int)MathF.Floor((_Position.X + _Size.X) / GridBlockWidth);
@@ -262,7 +301,7 @@ namespace DotAge.Core.View
                     {
                         SetIndex(_xi, _yi, false);
                     }
-                    GridIndex[tmpPoint].CreatureIndex.Add(_ID);
+                    BindIndexToEntity(_ID, tmpPoint);
                 }
             }
             return true;
@@ -279,6 +318,105 @@ namespace DotAge.Core.View
                 GridIndex.Add(new Point(_x, _y), new BaseIndex());
             }
             return new int[0];
+        }
+    }
+
+    public static class TextureManager
+    {
+        private static Dictionary<string, TextureProperty> LoadedTextures = new Dictionary<string, TextureProperty>();
+        public static List<string> BufferTextureNames = new List<string>();
+        public static Dictionary<string, int> TextureLoadPosition = new Dictionary<string, int>();
+
+        static TextureManager()
+        {
+            LoadTexture("default_texture", 32, 32, 32, 32);
+            LoadTexture("Character", 2048, 2048, 32, 32);
+            LoadTexture("Status", 512, 512, 32, 32);
+
+            string[] chanames = {
+                "MissingTexture" , "Block_White" , "Empty" ,"Mine_Stone" ,"Mine_Gold" ,"Mine_Coal" ,"Tree" ,"Turret_Gun" ,
+                "Human_Engineer" , "Bullet_Yellow" ,"Shadow_White" ,"White_EightSIde" ,"Crash_Frame" , "Wihte_Ball" , "Castle_Bright" ,
+                "Castle_Dark" , "Boundary_Blue"
+            };
+            string[] stanames =
+            {
+                "health_bar_front" , "health_bar_mid" , "health_bar_end" , "health_bar_background" , "health_bar_per" , "shelf"
+            };
+            LoadedTextures["default_texture"].LoadNames(new string[] { "default" });
+            LoadedTextures["Character"].LoadNames(chanames);
+            LoadedTextures["Status"].LoadNames(stanames);
+        }
+
+        public static bool LoadTexture(string TextureName, int TextureWidth, int TextureHeight, int UnitWidth, int UnitHeight)
+        {
+            if (LoadedTextures.ContainsKey(TextureName))
+            {
+                return false;
+            }
+            else
+            {
+                if (TextureWidth % UnitWidth != 0 || TextureHeight % UnitHeight != 0)
+                {
+                    return false;
+                }
+
+                var _tmpTextureProperty = new TextureProperty(TextureWidth, TextureHeight, UnitWidth, UnitHeight);
+                _tmpTextureProperty.Description = "Texture Name : " + TextureName;
+                _tmpTextureProperty.InitTextures();
+                LoadedTextures[TextureName] = _tmpTextureProperty;
+                for (int i = 0; i < LoadedTextures[TextureName].HeightCount; i++)
+                {
+                    for (int j = 0; j < LoadedTextures[TextureName].WidthCount; j++)
+                    {
+                        LoadedTextures[TextureName].Textures[j, i] = new Rectangle(UnitWidth * j, UnitHeight * i, UnitWidth, UnitHeight);
+                    }
+                }
+                BufferTextureNames.Add(TextureName);
+                return true;
+            }
+        }
+
+        public static (int, Rectangle?) GetTextureRegionByName(string TextureName, string TextureRegion)
+        {
+            if (TextureLoadPosition.ContainsKey(TextureName))
+            {
+                if (LoadedTextures[TextureName].TextureNames.ContainsKey(TextureRegion))
+                {
+                    return (TextureLoadPosition[TextureName], LoadedTextures[TextureName].GetTextureByName(TextureRegion));
+                }
+                else
+                {
+                    return (-1, null);
+                }
+            }
+            else
+            {
+                return (-1, null);
+            }
+        }
+
+        public static (int, Rectangle?) GetTextureRegionByIndex(string TextureName, int TextureIndex)
+        {
+            if (TextureLoadPosition.ContainsKey(TextureName))
+            {
+                if (LoadedTextures[TextureName].CheckIndexVaild(TextureIndex))
+                {
+                    return (TextureLoadPosition[TextureName], LoadedTextures[TextureName].GetTextureX(TextureIndex));
+                }
+                else
+                {
+                    return (-1, null);
+                }
+            }
+            else
+            {
+                return (-1, null);
+            }
+        }
+
+        public static bool AddAnimation()
+        {
+            return true;
         }
     }
 }

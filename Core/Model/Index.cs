@@ -9,7 +9,7 @@ namespace DotAge.Core.Model
 {
     struct BaseIndex
     {
-        public List<int> CreatureIndex { get; set; } = new List<int>();
+        public List<int> EntityIndex { get; set; } = new List<int>();
         public List<int> MineIndex { get; set; } = new List<int>();
         public List<int> BuildingIndex { get; set; } = new List<int>();
         public List<int> CrashBoxIndex { get; set; } = new List<int>();
@@ -21,7 +21,7 @@ namespace DotAge.Core.Model
 
         public bool CheckCreature(int _creatureID)
         {
-            if (CreatureIndex.Contains(_creatureID))
+            if (EntityIndex.Contains(_creatureID))
             {
                 return true;
             }

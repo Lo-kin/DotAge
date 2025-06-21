@@ -3,10 +3,8 @@ using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
-using Microsoft.Win32;
+using DotAge.Core.Model.Delegates;
 using DotAge.Core.Model;
 
 namespace DotAge.Core.Control
@@ -15,54 +13,89 @@ namespace DotAge.Core.Control
     {
         public int ID = -1;
         public int BindEntity = -1;
-        public List<Keys> FrameKeys = new List<Keys>();
-        public List<MouseButton> FrameMouse = new List<MouseButton>();
-        public delegate bool TriggerDelegate();
+        public List<(Keys , TwoStat)> FrameKeys = new List<(Keys, TwoStat)>();
+        public List<(MouseButton , TwoStat)> FrameMouse = new List<(MouseButton, TwoStat)>();
         public Dictionary<Keys, ControlerFunc> KeyDelegate = new Dictionary<Keys, ControlerFunc>();
         public Dictionary<MouseButton , ControlerFunc> MouseDelegate = new Dictionary<MouseButton, ControlerFunc>();
+        public Dictionary<int , ZoneEntity> ZoneDelegate = new Dictionary<int, ZoneEntity>();
         public Vector2 MoveOprate = new Vector2();
 
         public EntityControler()
         {
-            ControlerFunc _up = new ControlerFunc() {
+            ControlerFunc _esc = new ControlerFunc()
+            {
+                BindKey = Keys.Escape,
+                TriggerStat = TwoStat.FreezeToActive,
+                ControlerFuncDelegate = (t) => { return true; },
+                ControlerFuncescription = "Exit temp"
+            };
+            ControlerFunc _up = new ControlerFunc()
+            {
                 BindKey = Keys.W,
-                ControlerFuncDelegate = () => { return Move(new Vector2(0, -1)); },
+                TriggerStat = TwoStat.FreezeToActive,
+                ControlerFuncDelegate = (t) => { return Move(new Vector2(0, -1)); },
                 ControlerFuncescription = "MoveUP"
             };
             ControlerFunc _down = new ControlerFunc()
             {
                 BindKey = Keys.S,
-                ControlerFuncDelegate = () => { return Move(new Vector2(0, 1)); },
+                TriggerStat = TwoStat.FreezeToActive,
+                ControlerFuncDelegate = (t) => { return Move(new Vector2(0, 1)); },
                 ControlerFuncescription = "MoveDOWN"
             };
             ControlerFunc _left = new ControlerFunc()
             {
                 BindKey = Keys.A,
-                ControlerFuncDelegate = () => { return Move(new Vector2(-1, 0)); },
+                TriggerStat = TwoStat.FreezeToActive,
+                ControlerFuncDelegate = (t) => { return Move(new Vector2(-1, 0)); },
                 ControlerFuncescription = "MoveLEFT"
             };
             ControlerFunc _right = new ControlerFunc()
             {
                 BindKey = Keys.D,
-                ControlerFuncDelegate = () => { return Move(new Vector2(1, 0)); },
+                TriggerStat = TwoStat.FreezeToActive,
+                ControlerFuncDelegate = (t) => { return Move(new Vector2(1, 0)); },
                 ControlerFuncescription = "MoveRIGHT"
             };
             ControlerFunc _leftmouse = new ControlerFunc()
             {
                 BindMouseButton = MouseButton.Left,
-                ControlerFuncDelegate = () => { return Target(Controlers.CurrentMapMousePosition.ToVector2()); },
+                TriggerStat = TwoStat.Any,
+                ControlerFuncDelegate = (t) => {
+                    var fixedMousePos = Controlers.CurrentMapMousePosition.ToVector2();
+                    var unfixedMousePos = Controlers.NowMouseStat.Position.ToVector2();
+                    foreach (var item in GameData.ZoneEntities)
+                    {
+                        if (item.IsFixedToMap == true)
+                        {
+                            if (item.CheckTrigger(fixedMousePos , t))
+                            {
+                                item.Trigger(fixedMousePos , t);
+                            }
+                        }
+                        else
+                        {
+                            if (item.CheckTrigger(unfixedMousePos , t))
+                            {
+                                item.Trigger(unfixedMousePos , t);//缺少特异性的指代，stat与实际stat不符
+                            }
+                        }
+
+                    }
+                    return true; 
+                },
                 ControlerFuncescription = "Target To Position"
             };
             ControlerFunc _rightmouse = new ControlerFunc()
             {
                 BindMouseButton = MouseButton.Right,
-                ControlerFuncDelegate = () => { return ExcuteFunc(() => { return GameData.GameEntities[BindEntity].CreateChild(new Bullet()); }); },
+                TriggerStat = TwoStat.FreezeToActive,
+                ControlerFuncDelegate = (t) => { return ExcuteFunc(() => { return GameData.GameEntities[BindEntity]._physicEntity.PathNodes.AddNode(Controlers.CurrentMapMousePosition.ToVector2()); }); },
                 ControlerFuncescription = "Target To Position"
             };
             RegisterKey(_up);
             RegisterKey(_down);
             RegisterKey(_left);
-            
             RegisterKey(_right); 
             RegisterMouse(_leftmouse);
             RegisterMouse(_rightmouse);
@@ -85,32 +118,25 @@ namespace DotAge.Core.Control
             string log = "EC_id:" + ID + "Bind_id:" + BindEntity + " , " + FrameKeys.Count + " Keys Excuted , " + FrameMouse.Count + " Mouse Excuted [";
             foreach (var _keyboardKey in FrameKeys)
             {
-                if (KeyDelegate.Keys.Contains(_keyboardKey))
+                if (KeyDelegate.Keys.Contains(_keyboardKey.Item1))
                 {
-                    KeyDelegate[_keyboardKey].Invoke();
+                    KeyDelegate[_keyboardKey.Item1].Invoke(_keyboardKey.Item2);
                 }
                 log += _keyboardKey.ToString() + " ";
             }
             foreach (var _mouseKey in FrameMouse)
             {
-                if (MouseDelegate.Keys.Contains(_mouseKey))
+                if (MouseDelegate.Keys.Contains(_mouseKey.Item1))
                 {
-                    MouseDelegate[_mouseKey].Invoke();
+                    MouseDelegate[_mouseKey.Item1].Invoke(_mouseKey.Item2);
                 }
                 log += _mouseKey.ToString() + " ";
             }
-            
-            GameData.GameEntities[BindEntity].PhysicEntity.Position += MoveOprate;
+            GameData.GameEntities[BindEntity]._physicEntity.WishForward += MoveOprate;
             MoveOprate = new Vector2(0, 0);
             FrameKeys.Clear();
             FrameMouse.Clear();
             Controlers.Log.Add(log);
-            return true;
-        }
-
-        public bool GetKeyboard(Keys key)
-        {
-            FrameKeys.Add(key);
             return true;
         }
 
@@ -140,8 +166,8 @@ namespace DotAge.Core.Control
         {
             if (CheckVaild() == true)
             {
-                GameData.GameEntities[BindEntity].PhysicEntity.PathNodes.IsFollowForceRay = true;
-                GameData.GameEntities[BindEntity].PhysicEntity.PathNodes.ForceRay = _targetVec;
+                GameData.GameEntities[BindEntity]._physicEntity.PathNodes.IsFollowForceRay = true;
+                GameData.GameEntities[BindEntity]._physicEntity.PathNodes.ForceRay = _targetVec;
                 return true;
             }
             return false;
@@ -157,26 +183,7 @@ namespace DotAge.Core.Control
             
             return false;
         }
-
     }
 
-    class ControlerFunc
-    {
-        public Keys BindKey = Keys.None;
-        public MouseButton BindMouseButton = MouseButton.None;
-        public EntityControler.TriggerDelegate ControlerFuncDelegate;
-        public string ControlerFuncescription;
-        public int invokeCount;
 
-        public bool Invoke()
-        {
-            if (ControlerFuncDelegate != null)
-            {
-                var ExcuteStaat = ControlerFuncDelegate();
-                invokeCount++;
-                return ExcuteStaat;
-            }
-            return false;
-        }
-    }
 }

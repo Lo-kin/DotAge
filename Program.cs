@@ -8,7 +8,7 @@ AddEvent.IsBackground = true;
 AddEvent.Name = "MainLoop";
 AddEvent.Start();
 
-using var game = new DotAge.Core.View.Graphic();
+using var game = new Graphic();
 
 _engine.AddRenderProperty += new Engine.AddRP(game.AddRPBuffer);
 _engine.RemoveRenderProperty += new Engine.RemoveRP(game.RemoveRPBuffer);

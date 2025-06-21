@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DotAge.Core.Tools;
 using Microsoft.Xna.Framework;
 
 namespace DotAge.Core.Model
@@ -16,38 +17,50 @@ namespace DotAge.Core.Model
         public bool ManualMode { get; set; } = false;
         public bool Cycle { get; set; } = true;
         public int ProcessNodeIndex { get; private set; } = 0;
-        public bool IsInTarget { get; private set; } = false;
-        public float RemainLength { get; private set; } = 0;
-        public Vector2 RemainTarget { get; private set; } = new Vector2();
 
-        public Vector2 CurrentDirect { get; private set; } = new Vector2();
+        public bool IsInTarget { get; private set; } = false;
+
+        public Vector2 CurrentPosition { get; private set; }
+        public float RemainLength
+        { 
+            get
+            {
+                return (CurrentTarget - CurrentPosition).Length();
+            }
+        }
+        public Vector2 RemainTarget
+        {
+            get
+            {
+                return CurrentTarget - CurrentPosition;
+            }
+        }
+
+        public Vector2 CurrentDirect 
+        {
+            get
+            {
+                if (CurrentTarget == CurrentPosition)
+                {
+                    return Vector2.Zero;
+                }
+                return Vector2.Normalize(CurrentTarget - CurrentPosition);
+            }
+        }
 
         public Vector2 CurrentTarget
         {
             get
             {
-                if (IsFollowForceRay == true)
-                {
-                    return ForceRay;
-                }
                 if (Nodes.Count != 0 && ProcessNodeIndex <= Nodes.Count - 1)
                 {
                     return Nodes[ProcessNodeIndex];
                 }
                 else
                 {
-                    if (ProcessNodeIndex > Nodes.Count - 1)
-                    {
-                        ProcessNodeIndex = Nodes.Count;
-                    }
-                    return Vector2.Zero;
+                    return CurrentPosition;
                 }
-            }
-            set
-            {
-
-            }
-            
+            }   
         }
 
         public Path()
@@ -55,23 +68,10 @@ namespace DotAge.Core.Model
 
         }
 
-        public bool Update(Vector2 Position)
+        public Vector2 Update(Vector2 Position)//ms
         {
-            if (IsFollowForceRay == true)
-            {
-                CurrentDirect = Vector2.Normalize(ForceRay);
-                RemainLength = float.PositiveInfinity;
-                    
-                
-                return true;
-            }
-            if (Nodes.Count == 0)
-            {
-                RemainLength = 0f;
-                RemainTarget = new Vector2();
-                return false;
-            }
-            if (Position == CurrentTarget)
+            CurrentPosition = Position;
+            if (CurrentPosition == CurrentTarget)
             {
                 IsInTarget = true;
                 if (ManualMode == false)
@@ -83,10 +83,7 @@ namespace DotAge.Core.Model
             {
                 IsInTarget = false;
             }
-            CurrentDirect = Vector2.Normalize(CurrentTarget - Position);
-            RemainLength = (CurrentTarget - Position).Length();
-            RemainTarget = CurrentTarget - Position;
-            return false;
+            return CurrentDirect;
         }
 
         public bool PushNode()
@@ -131,7 +128,7 @@ namespace DotAge.Core.Model
 
         public bool AddNode(Vector2 Position)
         {
-            if (Position.X != float.NaN && Position.Y != float.NaN)
+            if (!float.IsNaN(Position.X) && !float.IsNaN(Position.Y))
             {
                 Nodes.Add(Position);
             }

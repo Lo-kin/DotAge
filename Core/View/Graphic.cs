@@ -1,10 +1,16 @@
 ﻿using DotAge.Core.Control;
+using DotAge.Core.Model.Dialogue;
+using DotAge.Core.Model.Economy;
+using DotAge.Core.Model.Region;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 
 namespace DotAge.Core.View
@@ -13,7 +19,8 @@ namespace DotAge.Core.View
     {
         private GraphicsDeviceManager _graphics;
         public static Camera2D ViewCamera = new Camera2D();
-        private SpriteBatch spb;
+        private SpriteBatch DynamicSprite;
+        private SpriteBatch StaticSprite;
         private SpriteFont _font;
         public Texture2D[] _texture = new Texture2D[6];
         public RenderProperty[] BufferRP = new RenderProperty[65536];//0,0位置显示错误推测：后端tps低导致在添加对象后还未更新对象导致 , 0位置不使用
@@ -25,6 +32,10 @@ namespace DotAge.Core.View
 
         public int AddRPBuffer(ref RenderProperty rp)
         {
+            if (rp.Init == false)
+            {
+                return -1;
+            }
             if (rp.Size != Vector2.Zero)
             {
                 BufferRP[EmptyRP[0]] = rp;
@@ -72,10 +83,14 @@ namespace DotAge.Core.View
             return true;
         }
 
+        public bool AddTexture(string _textureName , int position)
+        {
+            _texture[position] = Content.Load<Texture2D>(_textureName);
+            return true;
+        }
+
         public Graphic()
         {
-            var tmp = new RenderProperty();
-            AddRPBuffer(ref tmp);
             _graphics = new GraphicsDeviceManager(this);
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
@@ -94,14 +109,22 @@ namespace DotAge.Core.View
 
         protected override void LoadContent()
         {
-            spb = new SpriteBatch(GraphicsDevice);
-            _texture[0] = Content.Load<Texture2D>("default_texture");
-            _texture[1] = Content.Load<Texture2D>("Character");
-            _texture[2] = Content.Load<Texture2D>("Status");
+
+            DynamicSprite = new SpriteBatch(GraphicsDevice);
+            StaticSprite = new SpriteBatch(GraphicsDevice);
+            _texture = new Texture2D[_texture.Length + 1];
+            int count = -1;
+            foreach (var item in TextureManager.BufferTextureNames)
+            {
+                count ++;
+                AddTexture(item, count);
+                TextureManager.TextureLoadPosition[item] = count;
+            }
+            TextureManager.BufferTextureNames.Clear();
             _font = Content.Load<SpriteFont>("Default");
+            Engine.TextureLoadedFlag = true;
             // TODO: use this.Content to load your game content here
         }
-
         protected override void Update(GameTime gameTime)
         {
             if (Keyboard.GetState().IsKeyDown(Keys.Escape))
@@ -117,13 +140,15 @@ namespace DotAge.Core.View
             
             base.Update(gameTime);
         }
-        int a = 0;
+
+
+
         protected override void Draw(GameTime gameTime)
         {
-            a++;
-            GraphicsDevice.Clear(Color.Black);
-            spb.Begin(transformMatrix:ViewCamera.View);
-
+            
+            //GraphicsDevice.Clear(Color.Black);
+            DynamicSprite.Begin(transformMatrix:ViewCamera.View);
+            StaticSprite.Begin();
             for (int i = 0; i < LoadRP.Count(); i++)
             {
                 RenderProperty TmpRP = BufferRP[LoadRP[i]];
@@ -133,17 +158,46 @@ namespace DotAge.Core.View
                 }
                 if (TmpRP.Visibility == true)
                 {
-                    spb.Draw(_texture[1],new Rectangle( TmpRP.RenderPosition.ToPoint() , TmpRP.Size.ToPoint()), TextureIndex.GetTextureX(TmpRP.RenderTexture), TmpRP.TintColor);
+                    if (TmpRP.RenderTexture.Item1 == -1)
+                    {
+                        continue;
+                    }
+                    if (TmpRP.IsFixed == false)
+                    {
+                        if (TmpRP.IsShowTexture == true)
+                        {
+                            
+                            DynamicSprite.Draw(_texture[TmpRP.RenderTexture.Item1], new Rectangle(TmpRP.RenderPosition.ToPoint(), TmpRP.Size.ToPoint()), TmpRP.RenderTexture.Item2, TmpRP.TintColor);
+                        }
+                        if (TmpRP.IsShowText == true)
+                        {
+                            DynamicSprite.DrawString(_font , TmpRP.Text , TmpRP.RenderPosition, TmpRP.TintColor);
+                        }
+                    }
+                    else
+                    {
+                        if (TmpRP.IsShowTexture == true)
+                        {
+                            StaticSprite.Draw(_texture[TmpRP.RenderTexture.Item1], new Rectangle(TmpRP.RenderPosition.ToPoint(), TmpRP.Size.ToPoint()), TmpRP.RenderTexture.Item2, TmpRP.TintColor);
+                        }
+                        if (TmpRP.IsShowText == true)
+                        {
+                            StaticSprite.DrawString(_font, TmpRP.Text, TmpRP.RenderPosition, TmpRP.TintColor);
+                        }
+                    }
                 }
-
             }
-            spb.End();
-            spb.Begin();
+
             if (Engine.tessta.Length < 900)
             {
+                /*
                 string text = "";
                 for (int i = 4; i >= 1; i--)
                 {
+                    if (Controlers.Log.Count <= 4)
+                    {
+                        i = Controlers.Log.Count;
+                    }
                     text += Controlers.Log[^i] + "\n";
                 }
                 text += Controlers.NowMouseStat.Position.ToString() + "\n";
@@ -155,13 +209,26 @@ namespace DotAge.Core.View
                     }
                 }
                 text += "Mouse Postion : " + Controlers.CurrentMapMousePosition.ToString() + "\n";
+                if (GameData.GameEntities.Count > 0)
+                {
+                    text += "ID : " + GameData.GameEntities.Values.ToArray()[0].ID.ToString() + "\n";
+                    text += "he" + GameData.GameEntities.Values.ToArray()[0].GameEntity.Health.ToString() + "\n";
+                }
+                */
+                if (GameData.GameEntities.ContainsKey(GameData.MainControler.BindEntity) != false)
+                {
+                    //StaticSprite.DrawString(_font, GameData.GameEntities[GameData.MainControler.BindEntity]._gameEntity.Health.ToString(), new Vector2(0, 0), Color.White);
 
-                spb.DrawString(_font, text, Vector2.Zero, Color.Red);
-                //Thread.Sleep(100000);
+                }
+                //StaticSprite.DrawString(_font, city1.GetAllProductInfo + "\n" + city2.GetAllProductInfo + "\n" + GameData.GameEntities[Engine.Code].GameEntity.Money + "\n" + GameData.GameEntities[Engine.Code].GameEntity.GetProductCount, Vector2.Zero, Color.Red);
             }
+            DynamicSprite.End();
+            StaticSprite.End();
 
-            spb.End();
+
+
             base.Draw(gameTime);
         }
+
     }
 }

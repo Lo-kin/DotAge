@@ -1,15 +1,36 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using DotAge.Core.View;
+using Microsoft.Xna.Framework;
 
 namespace DotAge.Core.Model
 {
     class Terrain
     {
+        public RenderEntity _renderEntity { get; set; } = new RenderEntity();
+        public LocationPhysicEntity _localPhysicEntity { get; set; } = new LocationPhysicEntity();
+        public Terrain()
+        {
+            _renderEntity = new RenderEntity(1, new int[] {0 });
+            _renderEntity.Canvas.RenderProperties[0].Visibility = true;
+        }
+
+        public void UpdatePosition()
+        {
+            
+            _renderEntity.UpdatePosition(_localPhysicEntity.Position);
+            _renderEntity.UpdateSize(_localPhysicEntity.Size);
+        }
+
+        public void Crash(int _EntityID)
+        {
+            // This method can be overridden by derived classes to handle crash events.
+            // Currently, it does nothing.
+        }
 
     }
 
@@ -18,23 +39,23 @@ namespace DotAge.Core.Model
 
     }
 
-    class BaseBlock
+    class Grass : Terrain
     {
-        public Rectangle CrashBox = new Rectangle();
-        public Rectangle RenderBox
+        public Grass()
         {
-            get
-            {
-                return new Rectangle(Position, RenderSize);
-            }
+            _renderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Block_White"));
+            
+            _renderEntity.Canvas.SetAllTint(Color.Green);
         }
 
-        public Size RenderSize { get; set; } = new Size(16, 16);
-        public Point Position { get; set; } = new Point();
 
-        public BaseBlock()
+    }
+
+    class Boundary : Terrain
+    {
+        public Boundary()
         {
-
+            _renderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Boundary_Blue"));
         }
     }
 }
