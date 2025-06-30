@@ -190,43 +190,10 @@ namespace DotAge.Core.View
 
             if (Engine.tessta.Length < 900)
             {
-                /*
-                string text = "";
-                for (int i = 4; i >= 1; i--)
-                {
-                    if (Controlers.Log.Count <= 4)
-                    {
-                        i = Controlers.Log.Count;
-                    }
-                    text += Controlers.Log[^i] + "\n";
-                }
-                text += Controlers.NowMouseStat.Position.ToString() + "\n";
-                if (!(MouseZone.Log.Count < 3))
-                {
-                    for (int i = 2; i >= 1; i--)
-                    {
-                        text += MouseZone.Log[^i] + "\n";
-                    }
-                }
-                text += "Mouse Postion : " + Controlers.CurrentMapMousePosition.ToString() + "\n";
-                if (GameData.GameEntities.Count > 0)
-                {
-                    text += "ID : " + GameData.GameEntities.Values.ToArray()[0].ID.ToString() + "\n";
-                    text += "he" + GameData.GameEntities.Values.ToArray()[0].GameEntity.Health.ToString() + "\n";
-                }
-                */
-                if (GameData.GameEntities.ContainsKey(GameData.MainControler.BindEntity) != false)
-                {
-                    //StaticSprite.DrawString(_font, GameData.GameEntities[GameData.MainControler.BindEntity]._gameEntity.Health.ToString(), new Vector2(0, 0), Color.White);
-
-                }
                 //StaticSprite.DrawString(_font, city1.GetAllProductInfo + "\n" + city2.GetAllProductInfo + "\n" + GameData.GameEntities[Engine.Code].GameEntity.Money + "\n" + GameData.GameEntities[Engine.Code].GameEntity.GetProductCount, Vector2.Zero, Color.Red);
             }
             DynamicSprite.End();
             StaticSprite.End();
-
-
-
             base.Draw(gameTime);
         }
 

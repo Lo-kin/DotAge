@@ -11,19 +11,20 @@ namespace DotAge.Core.Model
 {
     class Terrain
     {
-        public RenderEntity _renderEntity { get; set; } = new RenderEntity();
-        public LocationPhysicEntity _localPhysicEntity { get; set; } = new LocationPhysicEntity();
+        public RenderEntity RenderEntity { get; set; } = new RenderEntity();
+        public LocationPhysicEntity LocalPhysicEntity { get; set; } = new LocationPhysicEntity();
+        public ZoneEntity ZoneEntity { get; set; } = new ZoneEntity();
+        public MessageEntity MessageFrame { get; set; } = new MessageEntity();
         public Terrain()
         {
-            _renderEntity = new RenderEntity(1, new int[] {0 });
-            _renderEntity.Canvas.RenderProperties[0].Visibility = true;
+            RenderEntity = new RenderEntity(1, new int[] {0 });
+            RenderEntity.Canvas.RenderProperties[0].Visibility = true;
         }
 
         public void UpdatePosition()
         {
-            
-            _renderEntity.UpdatePosition(_localPhysicEntity.Position);
-            _renderEntity.UpdateSize(_localPhysicEntity.Size);
+            RenderEntity.UpdatePosition(LocalPhysicEntity.Position);
+            RenderEntity.UpdateSize(LocalPhysicEntity.Size);
         }
 
         public void Crash(int _EntityID)
@@ -32,6 +33,7 @@ namespace DotAge.Core.Model
             // Currently, it does nothing.
         }
 
+        
     }
 
     class VoidBlock : Terrain
@@ -43,19 +45,17 @@ namespace DotAge.Core.Model
     {
         public Grass()
         {
-            _renderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Block_White"));
+            RenderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Block_White"));
             
-            _renderEntity.Canvas.SetAllTint(Color.Green);
+            RenderEntity.Canvas.SetAllTint(Color.Green);
         }
-
-
     }
 
     class Boundary : Terrain
     {
         public Boundary()
         {
-            _renderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Boundary_Blue"));
+            RenderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Boundary_Blue"));
         }
     }
 }

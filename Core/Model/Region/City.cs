@@ -31,7 +31,6 @@ namespace DotAge.Core.Model.Region
     public class City : Region
     {
 
-
     }
 
     class Kingdom : City

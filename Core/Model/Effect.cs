@@ -33,6 +33,5 @@ namespace DotAge.Core.Model
         {
             IsActive = false;
         }
-
     }
 }

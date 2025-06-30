@@ -29,7 +29,6 @@ namespace DotAge.Core.Control
             {
                 return NowMouseStat.Position - Graphic.ViewCamera.Position.ToPoint();
             }
-               
         }
 
         public static Point CurrentMousePosition
@@ -38,7 +37,6 @@ namespace DotAge.Core.Control
             {
                 return NowMouseStat.Position;
             }
-
         }
 
         static Controlers()
@@ -141,7 +139,7 @@ namespace DotAge.Core.Control
         }
     }
 
-    enum MouseButton
+    public enum MouseButton
     {
         None = 0,
         Left = 1,
@@ -151,7 +149,7 @@ namespace DotAge.Core.Control
         X2 = 5
     }
 
-    enum TwoStat//双状态在此为：冻结和激活；延伸出的状态有：冻结到激活和激活到冻结
+    public enum TwoStat//双状态在此为：冻结和激活；延伸出的状态有：冻结到激活和激活到冻结
     {
         None = -1,
         Freeze = 0,

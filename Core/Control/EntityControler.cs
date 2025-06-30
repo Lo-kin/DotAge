@@ -12,85 +12,89 @@ namespace DotAge.Core.Control
     class EntityControler
     {
         public int ID = -1;
-        public int BindEntity = -1;
-        public List<(Keys , TwoStat)> FrameKeys = new List<(Keys, TwoStat)>();
-        public List<(MouseButton , TwoStat)> FrameMouse = new List<(MouseButton, TwoStat)>();
-        public Dictionary<Keys, ControlerFunc> KeyDelegate = new Dictionary<Keys, ControlerFunc>();
-        public Dictionary<MouseButton , ControlerFunc> MouseDelegate = new Dictionary<MouseButton, ControlerFunc>();
-        public Dictionary<int , ZoneEntity> ZoneDelegate = new Dictionary<int, ZoneEntity>();
+        public Entity ExcuteEntity = null;
+        public List<(Keys , TwoStat)> FrameKeys = new();
+        public List<(MouseButton , TwoStat)> FrameMouse = new();
+        public Dictionary<Keys, ControlerFunc> KeyDelegate = new();
+        public Dictionary<MouseButton , ControlerFunc> MouseDelegate = new();
+        public Dictionary<int , ZoneEntity> ZoneDelegate = new();
         public Vector2 MoveOprate = new Vector2();
 
-        public EntityControler()
+        public EntityControler(Entity _excuteEntity)
         {
-            ControlerFunc _esc = new ControlerFunc()
+            if (_excuteEntity == null)
+            {
+                throw new ArgumentNullException(nameof(_excuteEntity), "EntityControler must bind a valid Entity.");
+            }
+            else
+            {
+                ExcuteEntity = _excuteEntity;
+            }
+            ControlerFunc _esc = new()
             {
                 BindKey = Keys.Escape,
                 TriggerStat = TwoStat.FreezeToActive,
-                ControlerFuncDelegate = (t) => { return true; },
+                ControlerFuncDelegate = (ClickStat , ClickPos) => { return ItemInformation.NullItem; },
                 ControlerFuncescription = "Exit temp"
             };
-            ControlerFunc _up = new ControlerFunc()
+            ControlerFunc _up = new()
             {
                 BindKey = Keys.W,
-                TriggerStat = TwoStat.FreezeToActive,
-                ControlerFuncDelegate = (t) => { return Move(new Vector2(0, -1)); },
+                TriggerStat = TwoStat.Active,
+                ControlerFuncDelegate = (ClickStat, ClickPos) => {
+                    Move(-Vector2.UnitY); 
+                    return ItemInformation.NullItem; 
+                },
                 ControlerFuncescription = "MoveUP"
             };
-            ControlerFunc _down = new ControlerFunc()
+            ControlerFunc _down = new()
             {
                 BindKey = Keys.S,
-                TriggerStat = TwoStat.FreezeToActive,
-                ControlerFuncDelegate = (t) => { return Move(new Vector2(0, 1)); },
+                TriggerStat = TwoStat.Active,
+                ControlerFuncDelegate = (ClickStat, ClickPos) => {Move(Vector2.UnitY); return ItemInformation.NullItem; },
                 ControlerFuncescription = "MoveDOWN"
             };
-            ControlerFunc _left = new ControlerFunc()
+            ControlerFunc _left = new()
             {
                 BindKey = Keys.A,
-                TriggerStat = TwoStat.FreezeToActive,
-                ControlerFuncDelegate = (t) => { return Move(new Vector2(-1, 0)); },
+                TriggerStat = TwoStat.Active,
+                ControlerFuncDelegate = (ClickStat, ClickPos) => { Move(-Vector2.UnitX); return ItemInformation.NullItem; },
                 ControlerFuncescription = "MoveLEFT"
             };
-            ControlerFunc _right = new ControlerFunc()
+            ControlerFunc _right = new()
             {
                 BindKey = Keys.D,
-                TriggerStat = TwoStat.FreezeToActive,
-                ControlerFuncDelegate = (t) => { return Move(new Vector2(1, 0)); },
+                TriggerStat = TwoStat.Active,
+                ControlerFuncDelegate = (ClickStat, ClickPos) => {Move(Vector2.UnitX); return ItemInformation.NullItem; },
                 ControlerFuncescription = "MoveRIGHT"
             };
-            ControlerFunc _leftmouse = new ControlerFunc()
+            ControlerFunc _leftmouse = new()
             {
                 BindMouseButton = MouseButton.Left,
                 TriggerStat = TwoStat.Any,
-                ControlerFuncDelegate = (t) => {
-                    var fixedMousePos = Controlers.CurrentMapMousePosition.ToVector2();
-                    var unfixedMousePos = Controlers.NowMouseStat.Position.ToVector2();
+                ControlerFuncDelegate = (ClickStat, ClickPos) => {
+                    ItemInformation? ReturnMessage = null;
                     foreach (var item in GameData.ZoneEntities)
                     {
                         if (item.IsFixedToMap == true)
                         {
-                            if (item.CheckTrigger(fixedMousePos , t))
-                            {
-                                item.Trigger(fixedMousePos , t);
-                            }
+                            item.Trigger(ClickPos, ClickStat);
                         }
                         else
                         {
-                            if (item.CheckTrigger(unfixedMousePos , t))
-                            {
-                                item.Trigger(unfixedMousePos , t);//缺少特异性的指代，stat与实际stat不符
-                            }
+                            item.Trigger(ClickPos - Graphic.ViewCamera.Position, ClickStat);
                         }
-
+                        ReturnMessage = item.InformationSource.MessageItem;
                     }
-                    return true; 
+                    return ReturnMessage; 
                 },
                 ControlerFuncescription = "Target To Position"
             };
-            ControlerFunc _rightmouse = new ControlerFunc()
+            ControlerFunc _rightmouse = new()
             {
                 BindMouseButton = MouseButton.Right,
-                TriggerStat = TwoStat.FreezeToActive,
-                ControlerFuncDelegate = (t) => { return ExcuteFunc(() => { return GameData.GameEntities[BindEntity]._physicEntity.PathNodes.AddNode(Controlers.CurrentMapMousePosition.ToVector2()); }); },
+                TriggerStat = TwoStat.ActiveToFreeze,
+                ControlerFuncDelegate = (ClickStat, ClickPos) => { ExcuteEntity.GameFrame.ModifyMoney(-0.01f); return ItemInformation.NullItem; },
                 ControlerFuncescription = "Target To Position"
             };
             RegisterKey(_up);
@@ -101,13 +105,13 @@ namespace DotAge.Core.Control
             RegisterMouse(_rightmouse);
         }
 
-        public bool RegisterKey(ControlerFunc _controlerFunc)
+        public bool RegisterKey(dynamic _controlerFunc)
         {
             KeyDelegate[_controlerFunc.BindKey] = _controlerFunc;
             return false;
         }
 
-        public bool RegisterMouse(ControlerFunc _controlerFunc)
+        public bool RegisterMouse(dynamic _controlerFunc)
         {
             MouseDelegate[_controlerFunc.BindMouseButton] = _controlerFunc;
             return false;
@@ -115,12 +119,12 @@ namespace DotAge.Core.Control
 
         public bool EndFrame()//实体控制器的所有操作都会在Engine类的一帧内进行
         {
-            string log = "EC_id:" + ID + "Bind_id:" + BindEntity + " , " + FrameKeys.Count + " Keys Excuted , " + FrameMouse.Count + " Mouse Excuted [";
+            string log = "EC_id:" + ID + "Bind_id:" + ExcuteEntity.ID + " , " + FrameKeys.Count + " Keys Excuted , " + FrameMouse.Count + " Mouse Excuted [";
             foreach (var _keyboardKey in FrameKeys)
             {
                 if (KeyDelegate.Keys.Contains(_keyboardKey.Item1))
                 {
-                    KeyDelegate[_keyboardKey.Item1].Invoke(_keyboardKey.Item2);
+                    KeyDelegate[_keyboardKey.Item1].Invoke(_keyboardKey.Item2 , Vector2.Zero);
                 }
                 log += _keyboardKey.ToString() + " ";
             }
@@ -128,11 +132,11 @@ namespace DotAge.Core.Control
             {
                 if (MouseDelegate.Keys.Contains(_mouseKey.Item1))
                 {
-                    MouseDelegate[_mouseKey.Item1].Invoke(_mouseKey.Item2);
+                    MouseDelegate[_mouseKey.Item1].Invoke(_mouseKey.Item2, Controlers.CurrentMousePosition.ToVector2());
                 }
                 log += _mouseKey.ToString() + " ";
             }
-            GameData.GameEntities[BindEntity]._physicEntity.WishForward += MoveOprate;
+            ExcuteEntity.PhysicFrame.WishForward += MoveOprate;
             MoveOprate = new Vector2(0, 0);
             FrameKeys.Clear();
             FrameMouse.Clear();
@@ -142,7 +146,7 @@ namespace DotAge.Core.Control
 
         public bool CheckVaild()
         {
-            if (GameData.GameEntities.ContainsKey(BindEntity))
+            if (GameData.GameEntities.ContainsKey(ExcuteEntity.ID))
             {
                 return true;
             }
@@ -162,12 +166,13 @@ namespace DotAge.Core.Control
             return false;
         }
 
+
         public bool Target(Vector2 _targetVec)
         {
             if (CheckVaild() == true)
             {
-                GameData.GameEntities[BindEntity]._physicEntity.PathNodes.IsFollowForceRay = true;
-                GameData.GameEntities[BindEntity]._physicEntity.PathNodes.ForceRay = _targetVec;
+                ExcuteEntity.PhysicFrame.PathNodes.IsFollowForceRay = true;
+                ExcuteEntity.PhysicFrame.PathNodes.ForceRay = _targetVec;
                 return true;
             }
             return false;
@@ -184,6 +189,4 @@ namespace DotAge.Core.Control
             return false;
         }
     }
-
-
 }

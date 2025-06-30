@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DotAge.Core.Model;
+using DotAge.Core.Model.Dialogue;
 using Microsoft.Xna.Framework;
 
 namespace DotAge.Core.View
@@ -42,16 +43,6 @@ namespace DotAge.Core.View
         {
             RenderGroup = new RenderPropertyGroup(Count);
             RenderGroup.SetAllTextureState(true);
-
-            /*
-            if (Count < 0)
-            {
-                return false;
-            }
-            for (int i = 0; i < Count; i++)
-            {
-                ChainRenderEntity[i] = new ChainRenderEntity();
-            }*/
             return true;
         }
 
@@ -60,7 +51,11 @@ namespace DotAge.Core.View
             return true;
         }
 
-        //public Vector2() 
+        public virtual bool ChangeVisiblility(bool Stat)
+        {
+            RenderGroup.SetAllVisibility(Stat);
+            return true;
+        }
     }
 
     class HealthBar : UIElement
@@ -69,27 +64,30 @@ namespace DotAge.Core.View
         {
             RenderGroup.RenderProperties[0] = new(_init: true)
             {
-                RenderTexture = TextureManager.GetTextureRegionByName("Status", "health_bar_background"),
+                RenderTexture = TextureManager.GetTextureRegionByName("Status", "bar_background"),
                 Size = new Vector2(96, 32),
                 ActualPosition = new Vector2(0, GameSetting.ScreenHeight - 32)
             };
             RenderGroup.RenderProperties[1] = new(_init: true)
             {
-                RenderTexture = TextureManager.GetTextureRegionByName("Status", "health_bar_per"),
+                RenderTexture = TextureManager.GetTextureRegionByName("Status", "bar_per"),
                 TintColor = Color.Red,
                 Size = new Vector2(96, 32),
                 ActualPosition = new Vector2(0, GameSetting.ScreenHeight - 32)
             };
 
-            RenderGroup.RenderProperties[2].RenderTexture = TextureManager.GetTextureRegionByName("Status", "health_bar_front");
+            RenderGroup.RenderProperties[2].RenderTexture = TextureManager.GetTextureRegionByName("Status", "bar_front");
             RenderGroup.RenderProperties[2].Size = new Vector2(32, 32);
             RenderGroup.RenderProperties[2].ActualPosition = new Vector2(0, GameSetting.ScreenHeight - 32);
-            RenderGroup.RenderProperties[3].RenderTexture = TextureManager.GetTextureRegionByName("Status", "health_bar_mid");
+            RenderGroup.RenderProperties[2].TintColor = Color.Brown;
+            RenderGroup.RenderProperties[3].RenderTexture = TextureManager.GetTextureRegionByName("Status", "bar_mid");
             RenderGroup.RenderProperties[3].Size = new Vector2(32, 32);
             RenderGroup.RenderProperties[3].ActualPosition = new Vector2(32, GameSetting.ScreenHeight - 32);
-            RenderGroup.RenderProperties[4].RenderTexture = TextureManager.GetTextureRegionByName("Status", "health_bar_end");
+            RenderGroup.RenderProperties[3].TintColor = Color.Brown;
+            RenderGroup.RenderProperties[4].RenderTexture = TextureManager.GetTextureRegionByName("Status", "bar_end");
             RenderGroup.RenderProperties[4].Size = new Vector2(32, 32);
             RenderGroup.RenderProperties[4].ActualPosition = new Vector2(64, GameSetting.ScreenHeight - 32);
+            RenderGroup.RenderProperties[4].TintColor = Color.Brown;
 
             RenderGroup.SetAllFixed(true);
         }
@@ -102,11 +100,89 @@ namespace DotAge.Core.View
         }
     }
 
+    class Chatbox : UIElement
+    {
+        public (int , Rectangle?) Avatar { get; set; } = (-1, null);
+        public string Content { get; set; }
+        public Paragraph ChatContent = new Paragraph();
+        public int stdWidth = 16;
+        public int stdHeight = 4;
+        public Chatbox() 
+        {
+            InitialChainRenderEntity(3);
+            RenderGroup.RenderProperties[0] = new RenderProperty(_init: true)
+            {
+                RenderTexture = TextureManager.GetTextureRegionByName("Status", "bar_per"),
+                Size = new Vector2(512, 128),
+                TintColor = Color.FromNonPremultiplied(255, 165, 79,255),
+                ActualPosition = new Vector2((GameSetting.ScreenWidth / 2) - 256, GameSetting.ScreenHeight - 128)
+            };
+            RenderGroup.RenderProperties[1] = new RenderProperty(_init: true)
+            {
+                RenderTexture = TextureManager.GetTextureRegionByName("Status", "Coin"),
+                Size = new Vector2(32, 32),
+                TintColor = Color.White,
+                ActualPosition = new Vector2((GameSetting.ScreenWidth / 2) - 256, GameSetting.ScreenHeight - 128 )
+            };
+            RenderGroup.RenderProperties[2] = new RenderProperty(_init: true)
+            {
+                IsShowTexture = false,
+                TintColor = Color.Black,
+                Size = new Vector2(64, 32),
+                ActualPosition = new Vector2((GameSetting.ScreenWidth / 2) - 256 + 32, GameSetting.ScreenHeight - 128),
+                Text = "Chatbox Content"
+            };
+            RenderGroup.SetAllFixed(true);
+
+            string[] bula = {"makes","my","heart","warm","again","this","is","a","complex","content"};
+            for (int i = 0; i < 100; i++)
+            {
+                Sentence sentence = new Sentence()
+                {
+                    Content = i + " : ",
+                    Title = "Test",
+                    LoopShow = false,
+                    TimerDueTime = 0,
+                    TimerPeriod = 75
+                };
+                for (int j = 0; j < 10; j++)
+                {
+                    sentence.Content += " " + bula[(int)Random.Shared.Next(0, bula.Length)];
+                }
+                ChatContent.Sentences.Add(sentence);
+            }
+            ChatContent.Start();
+
+        }
+
+        public override bool Update()
+        {
+            //ChatContent.Update();
+            RenderGroup.RenderProperties[2].Text = ChatContent.GetCurrentContent;
+            return base.Update();
+        }
+
+        public bool ModifyAvatar((int , Rectangle?) _avatar)
+        {
+            Avatar = _avatar;
+            RenderGroup.RenderProperties[1].RenderTexture = Avatar;
+            return true;
+        }
+
+        public bool ModifyContent(string _content) 
+        { 
+            Content = _content;
+            RenderGroup.RenderProperties[2].Text = _content;
+            return true;
+        }
+    }
+
     class Shelf : UIElement
     {
         public int Width { get; set; } = 1;
         public int Height { get; set; } = 1;
         public Dictionary<Point, (string, int)> Storages = new Dictionary<Point, (string, int)>();
+        public Dictionary<ZoneEntity , Point> GetPoint = new Dictionary<ZoneEntity, Point>();
 
         public Shelf(int _width, int _height)
         {
@@ -155,14 +231,15 @@ namespace DotAge.Core.View
                     {
                         TriggerZone = new RectF(new Vector2(j * 32 + 4, i * 32 + 4), new Vector2(24, 24))
                     };
-                    zoneEntity.t = new Point(j, i);
                     zoneEntity.Condition = Control.TwoStat.FreezeToActive;
                     zoneEntity.TriggerDelegate += (p) =>
                     {
-                        Point GetPoint = zoneEntity.t;
-                        AddItem(GetPoint.X, GetPoint.Y, "Bullet_Yellow", -1);
+                        Point _p = this.GetPoint[zoneEntity];
+
+                        AddItem(_p.X, _p.Y, "Bullet_Yellow", -1);
                         return true;
                     };
+                    GetPoint.Add(zoneEntity, new Point(j, i));
                     list.Add(zoneEntity);
                 }
             }
@@ -187,14 +264,15 @@ namespace DotAge.Core.View
             RenderGroup.RenderProperties[_y * Width + _x + Width * Height].RenderTexture = TextureManager.GetTextureRegionByName("Character", _textureName);
             RenderGroup.RenderProperties[_y * Width + _x + Width * Height * 2].Text = Storages[new Point(_x, _y)].Item2.ToString();
         }
-
-
     }
 
     class InformationBox : UIElement
     {
         public Vector2 Position { get { return Control.Controlers.CurrentMousePosition.ToVector2(); } }
-        public InformationBox(PhysicEntity physicEntity)
+        public bool Visible { get; set; } = true;
+        public MessageEntity MessageSource { get; set; } = new MessageEntity() { MessageItem = ItemInformation.NullItem };
+
+        public InformationBox()
         {
             RenderGroup = new RenderPropertyGroup(8);
             for (int j = 0; j < 2; j++)
@@ -203,7 +281,7 @@ namespace DotAge.Core.View
                 {
                     RenderGroup.RenderProperties[j * 3 + i] = new RenderProperty(_init: true)
                     {
-                        RenderTexture = TextureManager.GetTextureRegionByName("Status", "health_bar_per"),
+                        RenderTexture = TextureManager.GetTextureRegionByName("Status", "bar_per"),
                         TintColor = Color.Gray,
                         Size = new Vector2(32, 32),
                         ActualPosition = new Vector2(i * 32, j * 32)
@@ -219,7 +297,7 @@ namespace DotAge.Core.View
             };
             RenderGroup.RenderProperties[7] = new RenderProperty(_init: true)
             {
-                RenderTexture = TextureManager.GetTextureRegionByName("Status", "health_bar_per"),
+                RenderTexture = TextureManager.GetTextureRegionByName("Status", "bar_per"),
                 Size = new Vector2(32, 32),
                 TintColor = Color.Red,
                 IsShowTexture = false,
@@ -230,8 +308,16 @@ namespace DotAge.Core.View
             RenderGroup.SetAllFixed(true);
         }
 
+        public bool SetInformationSource(MessageEntity messageEntity)
+        {
+            MessageSource = messageEntity;
+            return true;
+        }
+
         public override bool Update()
         {
+            RenderGroup.RenderProperties[7].Text = MessageSource.MessageItem.Content;
+            RenderGroup.RenderProperties[6].RenderTexture = MessageSource.MessageItem.Icon;
             for (int i = 0; i < RenderGroup.RenderProperties.Length; i++)
             {
                 RenderGroup.RenderProperties[i].Offset = Position;

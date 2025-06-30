@@ -65,6 +65,8 @@ namespace DotAge.Core.Control
             }
         }
 
+        InformationBox InformationBox = new InformationBox();
+
         public bool MainLoop(string[] args)
         {
             while (true)
@@ -75,6 +77,48 @@ namespace DotAge.Core.Control
                 {
                     if (GameTime == 0)
                     {
+                        List<Terrain> terrainList = new();
+                        for (int i = -1; i <= 40; i++)
+                        {
+                            for (int j = -1; j <= 40; j++)
+                            {
+                                Terrain tmp;
+                                if (i == -1 || j == -1 || i == 40 || j == 40)
+                                {
+                                    Boundary boundary = new();
+                                    boundary.LocalPhysicEntity.Position = new Vector2(i * 32, j * 32);
+                                    tmp = boundary;
+                                }
+                                else
+                                {
+                                    Grass grass = new();
+                                    grass.LocalPhysicEntity.Position = new Vector2(i * 32, j * 32);
+                                    tmp = grass;
+                                }
+                                tmp.UpdatePosition();
+                                terrainList.Add(tmp);
+                                AddRenderGroups(tmp.RenderEntity.Canvas);
+                            }
+                        }
+                        GameData.GameMaps[Point.Zero] = terrainList;
+
+                        Soildre item = (Soildre)CreateEntity(new Soildre()
+                        {
+                            PhysicFrame = new PhysicEntity()
+                            {
+                                Position = new Vector2(640, 320),
+                                Size = new Vector2(32, 32),
+                                PathNodes = new Path()
+                                {
+                                    Cycle = false,
+                                    ForceRay = new Vector2(0, 0)
+                                }
+                            },
+                        });
+                        item.AddSpeaker();
+                        EntityControler entityControler = new(item);
+                        GameData.AddControler(entityControler);
+
                         ZoneEntity _moveLeft = new ZoneEntity()
                         {
                             Description = "Screen Move To Left",
@@ -107,44 +151,17 @@ namespace DotAge.Core.Control
                         GameData.ZoneEntities.Add(_moveRight);
                         GameData.ZoneEntities.Add(_moveTop);
                         GameData.ZoneEntities.Add(_moveBottom);
-
-                        HealthBar healthBar = new HealthBar();
-                        AddRenderGroups(healthBar);
-                        Shelf shelf = new Shelf(5,10);
-                        AddRenderGroups(shelf);
-                        GameData.AddUIElement(healthBar); 
-                        GameData.AddUIElement(shelf);
-                        shelf.AddItem(0, 0, "Bullet_Yellow" , 100);
-                        shelf.AddItem(4, 0, "Bullet_Yellow" , 0);
-                        shelf.AddItem(3, 6, "Bullet_Yellow" , 10);
-                        List<Terrain> terrainList = new();
-                        for (int i = -1; i <= 40; i++)
+                        InformationBox = new InformationBox()
                         {
-                            for (int j = -1; j <= 40; j++)
-                            {
-                                Terrain tmp;
-                                if (i == -1 || j == -1 || i == 40 || j == 40)
-                                {
-                                    Boundary boundary = new();
-                                    boundary._localPhysicEntity.Position = new Vector2(i * 32, j * 32);
-                                    tmp = boundary;
-                                }
-                                else
-                                {
-                                    Grass grass = new();
-                                    grass._localPhysicEntity.Position = new Vector2(i * 32, j * 32);
-                                    tmp = grass;
-                                }
-                                
-                                tmp.UpdatePosition();
-                                terrainList.Add(tmp);
-
-                                AddRenderGroups(tmp._renderEntity.Canvas);
-                            }
-                        }
-                        GameData.GameMaps[Point.Zero] = terrainList;
+                            MessageSource = item.MessageEntity,
+                        };
+                        AddRenderGroups(InformationBox);
+                        GameData.AddUIElement(InformationBox);
+                        Chatbox chatbox = new Chatbox();
+                        AddRenderGroups(chatbox);
+                        GameData.AddUIElement(chatbox);
                     }
-                    //((Shelf)GameData.GameEffects[_id]).AddItem(3, 3, "Bullet_Yellow" , 10);
+
                     //测试一：将创建与销毁实体事件放在前面执行，而不是后面
                     foreach (var item in RemoveEntityList)
                     {
@@ -162,50 +179,7 @@ namespace DotAge.Core.Control
                     //这个引擎大量使用宏定义的设计 例如实体控制器的设计
                     //并且依赖宏去实现大多数功能
                     Controlers.Update();//先更新各个控制器的状态//再在下文中更新对应相机，实体控制器发送更新的数据
-                    if (GameTime == 0)
-                    {
-                        Soildre soildre1 = new()
-                        {
-                            _physicEntity = new PhysicEntity()
-                            {
-                                Position = new Vector2(640, 320),
-                                Size = new Vector2(32, 32),
-                                PathNodes = new Path()
-                                {
-                                    Cycle = false,
-                                    ForceRay = new Vector2(0, 0)
-                                }
-                            },
-                        };
-                        soildre1.AddSpeaker();
-                        int _Code = CreateEntity(soildre1);
-                        InformationBox informationBox = new InformationBox(soildre1._physicEntity);
-                        AddRenderGroups(informationBox);
-                        GameData.AddUIElement(informationBox);
-                        EntityControler entityControler = new()
-                        {
-                            BindEntity = _Code
-                        };
-                        GameData.AddControler(entityControler);
 
-                        int seed = (int)Random.Shared.NextInt64(0, 65536);
-                        Point Center = new();
-                        for (int _y = 0; _y < 3; _y++)
-                        {
-                            for (int _x = 0; _x < 3; _x++)
-                            {
-                                CityEntity cityEntity = new()
-                                {
-                                    _physicEntity = new()
-                                    {
-                                        Position = new Vector2(200 + _x * 150 + Random.Shared.NextInt64(-60 , 60), 300 + _y * 150 + Random.Shared.NextInt64(-60 , 60))
-                                    }
-                                };
-                                CreateEntity(cityEntity);
-                            }
-                        }
-                    }
-                    
                     //在同一帧内进行鼠标状态读取和鼠标处理操作，避免操作遗漏与延迟（<=tick）
                     foreach (var item in GameData.EntityControlers)
                     {
@@ -223,14 +197,13 @@ namespace DotAge.Core.Control
                                 item.FrameMouse.Add((mouse , Controlers.ChangeMouseStat[mouse]));
                             }
                         }
-
                         item.EndFrame();
-                        GameData.GameEntities[item.BindEntity].InvokeDelegates();
+                        item.ExcuteEntity.InvokeDelegates();
                     }
                     
                     if (GameData.GameEntities.Count != 0)
                     {
-                        Dictionary<Point, BaseIndex> LoadEntityIndex = GameIndex.GetRangeIndex(GameData.GameEntities[GameData.MainControler.BindEntity]._physicEntity.Position, LoadRange);
+                        Dictionary<Point, BaseIndex> LoadEntityIndex = GameIndex.GetRangeIndex(GameData.MainControler.ExcuteEntity.PhysicFrame.Position, LoadRange);
                         List<int> AllLoadEntity = new();
                         foreach (var item in LoadEntityIndex.Values)
                         {
@@ -240,7 +213,7 @@ namespace DotAge.Core.Control
                         foreach (var SingleEntity in AllLoadEntity)
                         {
                             var _singleEntity = GameData.GameEntities[SingleEntity];
-                            _singleEntity._physicEntity.UpdateWish();
+                            _singleEntity.PhysicFrame.UpdateWish();
                             GameIndex.UpdateEntity(SingleEntity);
                             foreach (var item in _singleEntity.MapIndexes)
                             {
@@ -256,16 +229,17 @@ namespace DotAge.Core.Control
                                         continue;
                                     }
                                     var _compareEntity = GameData.GameEntities[CompareEntity];
-                                    if (RectF.IsContain(_singleEntity._physicEntity.CrashBox, _compareEntity._physicEntity.CrashBox))
+                                    if (RectF.IsContain(_singleEntity.PhysicFrame.CrashBox, _compareEntity.PhysicFrame.CrashBox))
                                     {
                                         _singleEntity.Crash(CompareEntity);//不计算另一个实体的碰撞
                                     }
                                 }
                             }
-                            _singleEntity._physicEntity.Update();
+                            _singleEntity.PhysicFrame.Update();
                             _singleEntity.UpdatePosition();
                             _singleEntity.UpdateSize();
-                            ModifyRenderGroups(_singleEntity._renderEntity.Canvas);
+                            _singleEntity.Update();
+                            ModifyRenderGroups(_singleEntity.RenderFrame.Canvas);
                         }
                     }
 
@@ -301,18 +275,20 @@ namespace DotAge.Core.Control
         public static List<Entity> CreateEntityList = new();
         public static List<int> RemoveEntityList = new();
 
-        public int CreateEntity(Entity entity)
+        public Entity CreateEntity(Entity entity)
         {
-            AddRenderGroups(entity._renderEntity.Canvas);
-            return GameData.AddEntity(entity);
+            AddRenderGroups(entity.RenderFrame.Canvas);
+            GameData.AddEntity(entity);
+            return entity;
         }
 
-        public int CreateEntity(Entity entity, int ID = -1, int _parentID = -1)
+        public Entity CreateEntity(Entity entity, int ID = -1, int _parentID = -1)
         {
             entity.ID = ID;
             entity.ParentID = _parentID;
-            AddRenderGroups(entity._renderEntity.Canvas);
-            return GameData.AddEntity(entity);
+            AddRenderGroups(entity.RenderFrame.Canvas);
+            GameData.AddEntity(entity);
+            return entity;
         }
 
         public bool RemoveEntity(int _entityID)
@@ -321,7 +297,7 @@ namespace DotAge.Core.Control
             {
                 return false;
             }
-            RemoveRenderGroups(GameData.GameEntities[_entityID]._renderEntity.Canvas);
+            RemoveRenderGroups(GameData.GameEntities[_entityID].RenderFrame.Canvas);
             return GameData.RemoveEntity(_entityID);
         }
 

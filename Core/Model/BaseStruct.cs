@@ -13,6 +13,22 @@ namespace DotAge.Core.Model
     {
     }
 
+    public struct ItemInformation
+    {
+        public static ItemInformation NullItem => new("Null", "This is a null item information.", "This is a null item content.");
+
+        public string Title = "Item Information";
+        public string Description = "This is a item information.";
+        public string Content  = "This is a item content."; 
+        public (int , Rectangle?) Icon = (-1, null);
+        public ItemInformation(string title, string description, string content)
+        {
+            Title = title;
+            Description = description;
+            Content = content;
+        }
+    }
+
     class Group
     {
         public string Name { get; set; }

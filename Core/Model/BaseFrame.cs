@@ -17,6 +17,11 @@ using System.Threading.Tasks;
 
 namespace DotAge.Core.Model
 {
+    interface IClick
+    {
+        ZoneEntity ClickZone { get; set; }
+        ItemInformation? OnClick();
+    }
 
     class GameEntity
     {
@@ -399,7 +404,7 @@ namespace DotAge.Core.Model
         public string Description = "Default Zone Entity";
         public int invokeCount = 0;
         public TwoStat Condition = TwoStat.None;
-        public Point t = new Point(0, 0);//临时的点参数
+        public MessageEntity InformationSource = new();
 
         public bool BindDelegate(Func<Vector2, bool> _delegate)
         {
@@ -437,5 +442,10 @@ namespace DotAge.Core.Model
             invokeCount++;
             return true;
         }
+    }
+
+    class MessageEntity
+    {
+        public ItemInformation MessageItem = ItemInformation.NullItem;
     }
 }

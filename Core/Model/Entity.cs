@@ -16,21 +16,25 @@ namespace DotAge.Core.Model
         Ray ModifyShootingPosition(Ray RalativeRay);
     }
 
-    class Entity
+    class Entity : IClick
     {
         public int ID = -1;
         public List<int> ChildID = new List<int>();
         public int ParentID = -1;
         public delegate bool ExcuteDelegates();
-        public PhysicEntity _physicEntity { get; set; } = new PhysicEntity();//M
-        public RenderEntity _renderEntity { get; set; } = new RenderEntity();//V
-        public GameEntity _gameEntity { get; set; } = new GameEntity();//C
+        public PhysicEntity PhysicFrame { get; set; } = new PhysicEntity();//M
+        public RenderEntity RenderFrame { get; set; } = new RenderEntity();//V
+        public GameEntity GameFrame { get; set; } = new GameEntity();//C
+        public MessageEntity MessageEntity { get; set; } = new MessageEntity();
+        ZoneEntity IClick.ClickZone { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
         public List<Point> MapIndexes = new List<Point>();
+        public ZoneEntity ClickZone = new();
 
         public Entity()
         {
-            _renderEntity = new RenderEntity(16, new int[] { 15});
-            _renderEntity.ChangeCanvas(1 , TextureManager.GetTextureRegionByName("Character", "Empty"));
+            RenderFrame = new RenderEntity(16, new int[] { 15});
+            RenderFrame.ChangeCanvas(1 , TextureManager.GetTextureRegionByName("Character", "Empty"));
             //RenderEntity.ChangeBackground(TextureManager.GetTextureRegionByName("Character", "Crash_Frame"));
         }
 
@@ -51,23 +55,29 @@ namespace DotAge.Core.Model
 
         public virtual bool UpdatePosition()
         {
-            _renderEntity.UpdatePosition(_physicEntity.Position);
-            
+            RenderFrame.UpdatePosition(PhysicFrame.Position);
+            ClickZone.TriggerZone = PhysicFrame.CrashBox;
             return false;
         }
 
         public virtual bool UpdateSize()
         {
-            if (_gameEntity.IsRenderFollowCrashbox == true)
+            if (GameFrame.IsRenderFollowCrashbox == true)
             {
-                _renderEntity.UpdateSize(_physicEntity.Size);
+                RenderFrame.UpdateSize(PhysicFrame.Size);
             }
             return false;
         }
 
         public virtual bool Update()//整合更新安排的事件
         {
-
+            MessageEntity.MessageItem = new ItemInformation()
+            {
+                Title = GameFrame.Name,
+                Description = "A Simple Entity For Test",
+                Content = "This Entity : " + ID + " Has " + GameFrame.Money + " Money",
+                Icon = TextureManager.GetTextureRegionByName("Character", "Empty"),
+            };
             return true;
         }
 
@@ -121,11 +131,13 @@ namespace DotAge.Core.Model
             {
                 return false;
             }
-            Ray _rayForce = new Ray();
-            _rayForce.Position = Controlers.CurrentMapMousePosition.ToVector2();
-            _rayForce.Direct = Controlers.CurrentMapMousePosition.ToVector2() - _physicEntity.Position;
-            _child._physicEntity.PathNodes.ForceRay = _rayForce.Direct;
-            _child._physicEntity.Position = Controlers.CurrentMapMousePosition.ToVector2();
+            Ray _rayForce = new()
+            {
+                Position = Controlers.CurrentMapMousePosition.ToVector2(),
+                Direct = Controlers.CurrentMapMousePosition.ToVector2() - PhysicFrame.Position
+            };
+            _child.PhysicFrame.PathNodes.ForceRay = _rayForce.Direct;
+            _child.PhysicFrame.Position = Controlers.CurrentMapMousePosition.ToVector2();
             _child.ParentID = ID;
             Engine.CreateEntityList.Add(_child);
             return true;
@@ -146,14 +158,21 @@ namespace DotAge.Core.Model
         {
 
         }
+
+        public virtual ItemInformation? OnClick()
+        {
+            return null;
+            // This method can be overridden by derived classes to handle click events.
+            // Currently, it does nothing.
+        }
     }
 
     class Creature : Entity
     {
         public Creature()
         {
-            _physicEntity.Position = new Vector2(0, 0);
-            _physicEntity.Size = new Vector2(32, 32);
+            PhysicFrame.Position = new Vector2(0, 0);
+            PhysicFrame.Size = new Vector2(32, 32);
         }
 
         public override bool UpdatePosition()
@@ -167,7 +186,7 @@ namespace DotAge.Core.Model
     {
         public CityEntity()
         {
-            _renderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Castle_Bright"));
+            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Castle_Bright"));
             
         }
     }
@@ -176,9 +195,9 @@ namespace DotAge.Core.Model
     {
         public Soildre()
         {
-            _renderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character" , "Human_Engineer"));
-            _physicEntity.Position = new Vector2(0, 0);
-            _renderEntity.ChangeRalatePosition(new Vector2(0, -16), 1);
+            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character" , "Human_Engineer"));
+            PhysicFrame.Position = new Vector2(0, 0);
+            RenderFrame.ChangeRalatePosition(new Vector2(0, -16), 1);
         }
 
         Paragraph paragraph = new Paragraph()
@@ -223,21 +242,21 @@ namespace DotAge.Core.Model
 
         public override bool UpdatePosition()
         {
-            paragraph.Update();
-            _renderEntity.Canvas.RenderProperties[15].Text = paragraph.GetCurrentContent;
+            //paragraph.Update();
+            RenderFrame.Canvas.RenderProperties[15].Text = paragraph.GetCurrentContent;
             return base.UpdatePosition();
         }
 
         public override void Crash(int _EntityID)
         {
-            _gameEntity.ModifyHealth(-0.7f);
+            GameFrame.ModifyHealth(-0.7f);
             base.Crash(_EntityID);
         }
 
         public override void Trigger()
         {
             
-            _gameEntity.ModifyMoney(0);
+            GameFrame.ModifyMoney(0);
             base.Trigger();
         }
     }
@@ -246,7 +265,7 @@ namespace DotAge.Core.Model
     {
         public Turret()
         {
-            _renderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Turret_Gun"));
+            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Turret_Gun"));
         }
     }
 
@@ -274,21 +293,21 @@ namespace DotAge.Core.Model
 
         public Bullet()
         {
-            _gameEntity.IsRenderFollowCrashbox = true;
-            _physicEntity.Size = new Vector2(32, 32);
+            GameFrame.IsRenderFollowCrashbox = true;
+            PhysicFrame.Size = new Vector2(32, 32);
 
             //RenderEntity.RenderSize = new Vector2(16, 16);
-            _renderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Wihte_Ball"));
-            _renderEntity.Canvas.RenderProperties[^1].TintColor = Color.Gray;
+            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Wihte_Ball"));
+            RenderFrame.Canvas.RenderProperties[^1].TintColor = Color.Gray;
             //RenderEntity.ChangeBackground(TextureName.Crash_Frame);
 
-            _physicEntity.PathNodes.IsFollowForceRay = true;
-            _physicEntity.PathNodes.Cycle = false;
+            PhysicFrame.PathNodes.IsFollowForceRay = true;
+            PhysicFrame.PathNodes.Cycle = false;
         }
 
         public override void Crash(int _EntityID)
         {
-            GameData.GameEntities[_EntityID]._gameEntity.ModifyHealth(-Damage);
+            GameData.GameEntities[_EntityID].GameFrame.ModifyHealth(-Damage);
             PierceCount--;
             if (PierceCount <= 0)
             {
@@ -308,9 +327,9 @@ namespace DotAge.Core.Model
     {
         public GoldMine()
         {
-            _renderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character" , "Mine_Gold"));
-            _renderEntity.ChangeBackground(TextureManager.GetTextureRegionByName("Character", "Shadow_White"));
-            _gameEntity.Name = "Gold_Mine";
+            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character" , "Mine_Gold"));
+            RenderFrame.ChangeBackground(TextureManager.GetTextureRegionByName("Character", "Shadow_White"));
+            GameFrame.Name = "Gold_Mine";
         }
 
         public override void Dig()

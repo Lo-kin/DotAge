@@ -320,6 +320,29 @@ namespace DotAge.Core.View
             }
             return true;
         }
+
+        public bool SetVisibility(int _canvasPosition, bool _visibility)
+        {
+            if (CheckVaild(_canvasPosition) == false)
+            {
+                return false;
+            }
+            else
+            {
+                RenderProperties[_canvasPosition].Visibility = _visibility;
+                RenderProperties[_canvasPosition].PropertyChanged = true;
+                return true;
+            }
+        }
+
+        public bool SetAllVisibility(bool _visibility)
+        {
+            for (int i = 0; i < RenderProperties.Length; i++)
+            {
+                SetVisibility(i, _visibility);
+            }
+            return true;
+        }
     }
 
     public struct ChainRenderProperty
@@ -420,7 +443,4 @@ namespace DotAge.Core.View
             return true;
         }
     }
-
-
-
 }

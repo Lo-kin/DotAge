@@ -16,7 +16,7 @@ namespace DotAge.Core.View
     static class GameData
     {
         public static List<EntityControler> EntityControlers = new List<EntityControler>();
-        public static EntityControler MainControler = new EntityControler();
+        public static EntityControler MainControler = null;
         public static Dictionary<int, Group> GameGroups { get; } = new Dictionary<int, Group>();
         public static int DefaultGroupID = 0;
         public static Dictionary<int, Entity> GameEntities { get; } = new Dictionary<int, Entity>();
@@ -36,6 +36,19 @@ namespace DotAge.Core.View
             thread.Start();
         }
 
+        public static bool SetMainControler(EntityControler _controler)
+        {
+            if (_controler == null)
+            {
+                return false;
+            }
+            else
+            {
+                MainControler = _controler;
+                return true;
+            }
+        }
+
         public static bool AddControler(EntityControler _controler)
         {
             if (_controler == null)
@@ -46,7 +59,7 @@ namespace DotAge.Core.View
             {
                 if (EntityControlers.Count == 0)
                 {
-                    MainControler = _controler;
+                    SetMainControler(_controler);
                 }
                 EntityControlers.Add(_controler);
                 return true;
@@ -169,8 +182,10 @@ namespace DotAge.Core.View
         static GameIndex()
         {
             BuildEmptyIndex(new Vector2(), 2);
-            Thread thread = new Thread(() => { test(); });
-            thread.Name = "test1";
+            Thread thread = new Thread(() => { test(); })
+            {
+                Name = "test1"
+            };
             thread.Start();
         }
 
@@ -286,8 +301,8 @@ namespace DotAge.Core.View
         public static bool SetEntity(Entity _entity)
         {
             int _ID = _entity.ID;
-            var _Size = _entity._physicEntity.Size;
-            var _Position = _entity._physicEntity.Position;
+            var _Size = _entity.PhysicFrame.Size;
+            var _Position = _entity.PhysicFrame.Position;
             int _xstart = (int)MathF.Floor(_Position.X / GridBlockWidth);
             int _ystart = (int)MathF.Floor(_Position.Y / GridBlockHeight);
             int _xend = (int)MathF.Floor((_Position.X + _Size.X) / GridBlockWidth);
@@ -340,7 +355,7 @@ namespace DotAge.Core.View
             };
             string[] stanames =
             {
-                "health_bar_front" , "health_bar_mid" , "health_bar_end" , "health_bar_background" , "health_bar_per" , "shelf"
+                "bar_lt" , "bar_t" , "bar_rt" ,"bar_lb" , "bar_l" , "bar_rb" ,"bar_l" , "bar_r" , "bar_background" , "bar_per" , "shelf" , "Coin"
             };
             LoadedTextures["default_texture"].LoadNames(new string[] { "default" });
             LoadedTextures["Character"].LoadNames(chanames);
