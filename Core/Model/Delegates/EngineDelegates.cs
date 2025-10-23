@@ -14,7 +14,7 @@ namespace DotAge.Core.Model.Delegates
     public delegate bool ArgDelegate<T>(T arg);
     public delegate bool StatArgDelegate<TwoStat, T2>(TwoStat InvokeStat, T2 arg2);
     public delegate bool StatDelegate<TwoStat>(TwoStat InvokeStat);
-    public delegate ItemInformation? ItemInformationDelegate(TwoStat ClickStat , Vector2 ClickPosition);
+    public delegate ItemInformation? ItemInformationDelegate(TwoStatus ClickStat , Vector2 ClickPosition);
     public delegate TRet? AnyDelegate<TVal , TRet>(TVal InvokeStat);
 
     class ControlerFunc
@@ -22,11 +22,11 @@ namespace DotAge.Core.Model.Delegates
         public Keys BindKey = Keys.None;
         public MouseButton BindMouseButton = MouseButton.None;
         public ItemInformationDelegate ControlerFuncDelegate;
-        public TwoStat TriggerStat = TwoStat.None; // 触发状态
+        public TwoStatus TriggerStat = TwoStatus.None; // 触发状态
         public string ControlerFuncescription;
         public int invokeCount;
 
-        public ItemInformation? Invoke(TwoStat InvokeStat , Vector2 CLickPos)
+        public ItemInformation? Invoke(TwoStatus InvokeStat , Vector2 CLickPos)
         {
             if (ControlerFuncDelegate != null && InvokeStat == TriggerStat)
             {

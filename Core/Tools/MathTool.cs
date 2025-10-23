@@ -9,12 +9,12 @@ namespace DotAge.Core.Tools
 {
     static class MathTool
     {
-        public static Point LengthTransToPointX(int Position , int Limit)
+        public static Point HorizonLayout(int Position , int Limit)
         {
             return new Point(Position % Limit, Position / Limit);
         }
 
-        public static Point LengthTransToPointY(int Position, int Limit)
+        public static Point VerticalLayout(int Position, int Limit)
         {
             return new Point(Position / Limit, Position % Limit);
         }

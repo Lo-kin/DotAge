@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using DotAge.Core.Control;
 using DotAge.Core.View;
@@ -9,6 +10,66 @@ using Microsoft.Xna.Framework;
 
 namespace DotAge.Core.Model
 {
+    class Stator
+    {
+        public bool LastState { get; set; } = false;
+        public bool CurrentState { get; set; } = false;
+        public TwoStatus TriggerCondition = TwoStatus.Any;
+        public TwoStatus CurrentStatus
+        {
+            get
+            {
+                if (LastState == false && CurrentState == false)
+                {
+                    return TwoStatus.Freeze;
+                }
+                else if (LastState == false && CurrentState == true)
+                {
+                    return TwoStatus.FreezeToActive;
+                }
+                else if (LastState == true && CurrentState == false)
+                {
+                    return TwoStatus.ActiveToFreeze;
+                }
+                else
+                {
+                    return TwoStatus.Active;
+                }
+            }
+        }
+        public Stator()
+        {
+
+        }
+
+        public Stator(TwoStatus triggerCondition)
+        {
+            TriggerCondition = triggerCondition;
+        }
+        public TwoStatus Update(bool newState)
+        {
+            LastState = CurrentState;
+            CurrentState = newState;
+            return CurrentStatus;
+        }
+
+        public bool IsTriggered()
+        {
+            if (TriggerCondition == TwoStatus.Any || 
+                TriggerCondition == CurrentStatus || 
+                (TriggerCondition == TwoStatus.Freeze && CurrentStatus == TwoStatus.ActiveToFreeze) || 
+                (TriggerCondition == TwoStatus.Active && CurrentStatus == TwoStatus.FreezeToActive))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+    }
+
     class BaseStruct
     {
     }
@@ -214,6 +275,21 @@ namespace DotAge.Core.Model
             return stat;
         }
 
+        public static RectF CrossZone(RectF rect1, RectF rect2)
+        {
+            float xL = MathF.Max(rect1.Left,  rect2.Left);
+            float xR = MathF.Min(rect1.Right, rect2.Right);
+            float yT = MathF.Max(rect1.Top,   rect2.Top);
+            float yB = MathF.Min(rect1.Bottom,rect2.Bottom);
+            if (xR >= xL && yB >= yT)
+            {
+                return new RectF(xL, yT, xR, yB);
+            }
+            else
+            {
+                return new RectF(0, 0, 0, 0);
+            }
+        }
 
         public RectF TestMove(Vector2 Vec)
         {

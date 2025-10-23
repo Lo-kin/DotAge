@@ -13,12 +13,11 @@ namespace DotAge.Core.Model
     {
         public RenderEntity RenderEntity { get; set; } = new RenderEntity();
         public LocationPhysicEntity LocalPhysicEntity { get; set; } = new LocationPhysicEntity();
-        public ZoneEntity ZoneEntity { get; set; } = new ZoneEntity();
+        //public ZoneEntity ZoneEntity { get; set; } = new ZoneEntity();
         public MessageEntity MessageFrame { get; set; } = new MessageEntity();
         public Terrain()
         {
-            RenderEntity = new RenderEntity(1, new int[] {0 });
-            RenderEntity.Canvas.RenderProperties[0].Visibility = true;
+
         }
 
         public void UpdatePosition()
@@ -45,9 +44,7 @@ namespace DotAge.Core.Model
     {
         public Grass()
         {
-            RenderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Block_White"));
-            
-            RenderEntity.Canvas.SetAllTint(Color.Green);
+
         }
     }
 
@@ -55,7 +52,7 @@ namespace DotAge.Core.Model
     {
         public Boundary()
         {
-            RenderEntity.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Boundary_Blue"));
+
         }
     }
 }

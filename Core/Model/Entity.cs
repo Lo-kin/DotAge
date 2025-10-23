@@ -11,31 +11,44 @@ using Microsoft.Xna.Framework;
 
 namespace DotAge.Core.Model
 {
-    interface IEntity
+    interface IPhysicEntity
     {
-        Ray ModifyShootingPosition(Ray RalativeRay);
+        PhysicEntity PhysicProperty { get; set; }
     }
 
-    class Entity : IClick
+    interface IRenderEntity
+    {
+        RenderEntity RenderProperty { get; set; }
+    }
+    interface IGameEntity
+    {
+        GameEntity GameProperty { get; set; }
+    }
+
+    class AbstructPhysicEntity : IPhysicEntity
+    {
+        public PhysicEntity PhysicProperty { get; set; }
+    }
+
+    class Entity : IPhysicEntity, IRenderEntity, IGameEntity
     {
         public int ID = -1;
-        public List<int> ChildID = new List<int>();
-        public int ParentID = -1;
-        public delegate bool ExcuteDelegates();
-        public PhysicEntity PhysicFrame { get; set; } = new PhysicEntity();//M
-        public RenderEntity RenderFrame { get; set; } = new RenderEntity();//V
-        public GameEntity GameFrame { get; set; } = new GameEntity();//C
-        public MessageEntity MessageEntity { get; set; } = new MessageEntity();
-        ZoneEntity IClick.ClickZone { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-
-        public List<Point> MapIndexes = new List<Point>();
-        public ZoneEntity ClickZone = new();
+        public List<Entity> Children = new List<Entity>();
+        public Entity Parent = null;
+        public PhysicEntity PhysicProperty { get; set; } = new PhysicEntity();
+        public RenderEntity RenderProperty { get; set; } = new RenderEntity();
+        public GameEntity GameProperty { get; set; } = new GameEntity();
+        public event Action OnUpdate;
 
         public Entity()
         {
-            RenderFrame = new RenderEntity(16, new int[] { 15});
-            RenderFrame.ChangeCanvas(1 , TextureManager.GetTextureRegionByName("Character", "Empty"));
-            //RenderEntity.ChangeBackground(TextureManager.GetTextureRegionByName("Character", "Crash_Frame"));
+            RenderProperty.LoadTexture("MissingTexture");
+            OnUpdate += () => 
+            {
+                PhysicProperty.Update();
+                RenderProperty.UpdatePosition(PhysicProperty.Position);
+                RenderProperty.UpdateSize(PhysicProperty.Size);
+            };
         }
 
         public Type GetEntityType()
@@ -43,118 +56,53 @@ namespace DotAge.Core.Model
             return GetType();
         }
 
-        public bool AddMapIndex(Point _index)
-        {
-            if (!MapIndexes.Contains(_index))
-            {
-                MapIndexes.Add(_index);
-                return true;
-            }
-            return false;
-        }
-
-        public virtual bool UpdatePosition()
-        {
-            RenderFrame.UpdatePosition(PhysicFrame.Position);
-            ClickZone.TriggerZone = PhysicFrame.CrashBox;
-            return false;
-        }
-
-        public virtual bool UpdateSize()
-        {
-            if (GameFrame.IsRenderFollowCrashbox == true)
-            {
-                RenderFrame.UpdateSize(PhysicFrame.Size);
-            }
-            return false;
-        }
-
         public virtual bool Update()//整合更新安排的事件
         {
-            MessageEntity.MessageItem = new ItemInformation()
+            if (OnUpdate != null)
             {
-                Title = GameFrame.Name,
-                Description = "A Simple Entity For Test",
-                Content = "This Entity : " + ID + " Has " + GameFrame.Money + " Money",
-                Icon = TextureManager.GetTextureRegionByName("Character", "Empty"),
-            };
+                OnUpdate();
+            }
             return true;
         }
 
-        public bool BindChild(int _childID)
+        public bool BindChild(Entity entity)
         {
-            if (GameData.GameEntities.ContainsKey(_childID))
+            if (entity != null)
             {
-                GameData.GameEntities[_childID].ParentID = ID;
-                ChildID.Add(_childID);
+                Children.Add(entity);
                 return true;
             }
             return false;
         }
 
-        public bool UnBindChild(int _childID)
+        public bool UnBindChild(Entity entity)
         {
-            if (GameData.GameEntities.ContainsKey(_childID))
+            if (entity != null)
             {
-                GameData.GameEntities[_childID].ParentID = -1;
-                ChildID.Remove(_childID);
+                Children.Remove(entity);
                 return true;
             }
             return false;
         }
 
-        public bool BindParent(int _parentID)
+        public bool BindParent(Entity entity)
         {
-            if (GameData.GameEntities.ContainsKey(_parentID))
+            if (entity != null)
             {
-                GameData.GameEntities[_parentID].ChildID.Add(ID);
-                ParentID = _parentID;
+                entity.BindChild(this);
+                Parent = entity;
                 return true;
             }
             return false;
         }
 
-        public bool UnBindParent(int _parentID)
+        public bool UnBindParent()
         {
-            if (GameData.GameEntities.ContainsKey(_parentID))
-            {
-                GameData.GameEntities[_parentID].ChildID.Remove(ID);
-                ParentID = -1;
-                return true;
-            }
-            return false;
-        }
-
-        public bool CreateChild(Entity _child)
-        {
-            if (_child == null)
-            {
-                return false;
-            }
-            Ray _rayForce = new()
-            {
-                Position = Controlers.CurrentMapMousePosition.ToVector2(),
-                Direct = Controlers.CurrentMapMousePosition.ToVector2() - PhysicFrame.Position
-            };
-            _child.PhysicFrame.PathNodes.ForceRay = _rayForce.Direct;
-            _child.PhysicFrame.Position = Controlers.CurrentMapMousePosition.ToVector2();
-            _child.ParentID = ID;
-            Engine.CreateEntityList.Add(_child);
+            Parent = null;
             return true;
         }
 
-        public bool InvokeDelegates()
-        {
-            return true;
-        }
-
-
-        public virtual void Trigger()
-        {
-
-        }
-
-        public virtual void Crash(int _EntityID)
+        public virtual void Crash(Entity BeingCrashedEntity)
         {
 
         }
@@ -162,8 +110,6 @@ namespace DotAge.Core.Model
         public virtual ItemInformation? OnClick()
         {
             return null;
-            // This method can be overridden by derived classes to handle click events.
-            // Currently, it does nothing.
         }
     }
 
@@ -171,13 +117,8 @@ namespace DotAge.Core.Model
     {
         public Creature()
         {
-            PhysicFrame.Position = new Vector2(0, 0);
-            PhysicFrame.Size = new Vector2(32, 32);
-        }
-
-        public override bool UpdatePosition()
-        {
-            return base.UpdatePosition();
+            PhysicProperty.Position = new Vector2(0, 0);
+            PhysicProperty.Size = new Vector2(32, 32);
         }
 
     }
@@ -186,7 +127,7 @@ namespace DotAge.Core.Model
     {
         public CityEntity()
         {
-            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Castle_Bright"));
+
             
         }
     }
@@ -195,69 +136,13 @@ namespace DotAge.Core.Model
     {
         public Soildre()
         {
-            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character" , "Human_Engineer"));
-            PhysicFrame.Position = new Vector2(0, 0);
-            RenderFrame.ChangeRalatePosition(new Vector2(0, -16), 1);
-        }
-
-        Paragraph paragraph = new Paragraph()
-        {
-
-        };
-
-        public void AddSpeaker()
-        {
-
-            Sentence sentence = new Sentence()
-            {
-                Content = "Hello World , this is a complex content for display our new technologi way.",
-                Title = "Test",
-                LoopShow = false,
-                TimerDueTime = 0,
-                TimerPeriod = 75
-            };
-            Sentence sentence1 = new Sentence()
-            {
-                Content = "Idk what can i do more.",
-                Title = "Test",
-                LoopShow = false,
-                TimerDueTime = 0,
-                TimerPeriod = 75
-            };
-            Sentence sentence2 = new Sentence()
-            {
-                Content = "Otherwise , i want to play dota2 more than cs2",
-                Title = "Test",
-                LoopShow = false,
-                TimerDueTime = 0,
-                TimerPeriod = 75
-            };
-            paragraph.Sentences.Add(sentence);
-            paragraph.Sentences.Add(sentence1);
-            paragraph.Sentences.Add(sentence2);
-
-            paragraph.Start();
 
         }
 
-        public override bool UpdatePosition()
+        public override void Crash(Entity _entity)
         {
-            //paragraph.Update();
-            RenderFrame.Canvas.RenderProperties[15].Text = paragraph.GetCurrentContent;
-            return base.UpdatePosition();
-        }
-
-        public override void Crash(int _EntityID)
-        {
-            GameFrame.ModifyHealth(-0.7f);
-            base.Crash(_EntityID);
-        }
-
-        public override void Trigger()
-        {
-            
-            GameFrame.ModifyMoney(0);
-            base.Trigger();
+            GameProperty.ModifyHealth(-0.7f);
+            base.Crash(_entity);
         }
     }
 
@@ -265,7 +150,6 @@ namespace DotAge.Core.Model
     {
         public Turret()
         {
-            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Turret_Gun"));
         }
     }
 
@@ -293,33 +177,17 @@ namespace DotAge.Core.Model
 
         public Bullet()
         {
-            GameFrame.IsRenderFollowCrashbox = true;
-            PhysicFrame.Size = new Vector2(32, 32);
-
-            //RenderEntity.RenderSize = new Vector2(16, 16);
-            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Wihte_Ball"));
-            RenderFrame.Canvas.RenderProperties[^1].TintColor = Color.Gray;
-            //RenderEntity.ChangeBackground(TextureName.Crash_Frame);
-
-            PhysicFrame.PathNodes.IsFollowForceRay = true;
-            PhysicFrame.PathNodes.Cycle = false;
         }
 
-        public override void Crash(int _EntityID)
+        public override void Crash(Entity entity)
         {
-            GameData.GameEntities[_EntityID].GameFrame.ModifyHealth(-Damage);
+            entity.GameProperty.ModifyHealth(-Damage);
             PierceCount--;
             if (PierceCount <= 0)
             {
-                Engine.RemoveEntityList.Add(ID);
+                Engine.RemoveEntityList.Contains(entity);
             }
-            base.Crash(_EntityID); 
-        }
-
-        public override void Trigger()
-        {
-
-            
+            base.Crash(entity); 
         }
     }
 
@@ -327,9 +195,7 @@ namespace DotAge.Core.Model
     {
         public GoldMine()
         {
-            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character" , "Mine_Gold"));
-            RenderFrame.ChangeBackground(TextureManager.GetTextureRegionByName("Character", "Shadow_White"));
-            GameFrame.Name = "Gold_Mine";
+            GameProperty.Name = "Gold_Mine";
         }
 
         public override void Dig()

@@ -117,28 +117,21 @@ namespace DotAge.Core.Model
 
     class RenderEntity
     {
-        public Vector2 RenderPosition = new Vector2();
-        public Vector2 RenderSize = new Vector2(32, 32);
-        public RenderPropertyGroup Canvas = new RenderPropertyGroup(16);
-
-        public RenderEntity(int CanvasCount = 16, int[] InitCanvas = null)
+        public TextureSprite Sprite = new TextureSprite();
+        public RenderEntity()
         {
-            Canvas = new RenderPropertyGroup(CanvasCount, RenderSize, RenderPosition, InitCanvas);
-            Canvas.SetAllTextureState(true);
-            Canvas.SetAllTextState(true);
+
         }
 
         public bool UpdatePosition(Vector2 Position)
         {
-            RenderPosition = Position;
-            Canvas.SetAllPosition(RenderPosition);
+            Sprite.Position = Position;
             return true;
         }
 
         public bool UpdateSize(Vector2 Size)
         {
-            RenderSize = Size;
-            Canvas.SetAllSize(RenderSize);
+            Sprite.Size = Size;
             return true;
         }
 
@@ -148,31 +141,9 @@ namespace DotAge.Core.Model
             return true;
         }
 
-        public bool ChangeRalatePosition(Vector2 Position, int Index)
+        public bool LoadTexture(string asssteName)
         {
-            return Canvas.SetOffset(Index, Position);
-        }
-
-        public bool ChangeFront((int, Rectangle?) _textureInfo)
-        {
-            return ChangeCanvas(Canvas.RenderProperties.Length - 1, _textureInfo);
-        }
-
-        public bool ChangeBackground((int, Rectangle?) _textureInfo)
-        {
-            return ChangeCanvas(0, _textureInfo);
-        }
-
-        public bool ChangeCanvas(int ChangePos, (int, Rectangle?) _textureInfo)
-        {
-            if (Canvas.CheckVaild(ChangePos) == false)
-            {
-                return false;
-            }
-            else
-            {
-                Canvas.RenderProperties[ChangePos].RenderTexture = _textureInfo;
-            }
+            Sprite.Region = TextureManager.GetTextureRegionByName(asssteName);
             return true;
         }
     }
@@ -318,79 +289,6 @@ namespace DotAge.Core.Model
         }
     }
 
-    class CombineRenderEntity
-    {
-
-    }
-
-    class ChainRenderEntity
-    {//想象一条链子，由链接点与链接物体构成，这里指的是单个链接点
-        public Vector2 ChainPoint = new Vector2();
-        public Vector2 EndChainpoint = new Vector2();
-        public Vector2 UniformPosition = new Vector2();
-        public Vector2 UniformSize = new Vector2(32, 32);
-        public RectF ChainBox
-        {
-            get
-            {
-                return new RectF(UniformPosition, UniformSize);
-            }
-        }
-        public RenderProperty[] RenderCanvas = new RenderProperty[16];
-
-        public ChainRenderEntity(int CanvasCount = 3)
-        {
-            InitialCanvas(CanvasCount);
-        }
-
-        public bool InitialCanvas(int CanvasCount)
-        {
-            if (CanvasCount <= 0)
-            {
-                RenderCanvas = new RenderProperty[16];
-                return false;
-            }
-            else
-            {
-                RenderCanvas = new RenderProperty[CanvasCount];
-                for (int i = 0; i < RenderCanvas.Length; i++)
-                {
-                    RenderCanvas[i] = new RenderProperty() { Init = true, Visibility = true, TintColor = Color.White };
-                }
-                return true;
-            }
-        }
-
-        public bool SetUniform(Vector2 Position, Vector2 Size)
-        {
-            UniformPosition = Position;
-            UniformSize = Size;
-
-            for (int i = 0; i < RenderCanvas.Length; i++)
-            {
-                if (RenderCanvas[i].Init == true)
-                {
-                    RenderCanvas[i].ActualPosition = UniformPosition;
-                    RenderCanvas[i].Size = UniformSize;
-                }
-            }
-            return true;
-        }
-
-        public bool SetChainPoint(Vector2 Position)
-        {
-            ChainPoint = Position;
-            for (int i = 0; i < RenderCanvas.Length; i++)
-            {
-                if (RenderCanvas[i].Init == true)
-                {
-                    RenderCanvas[i].ActualPosition = ChainPoint;
-                }
-            }
-            return true;
-        }
-    }
-
     class BaseStorage
     {
 
@@ -398,15 +296,22 @@ namespace DotAge.Core.Model
 
     class ZoneEntity
     {
+        public IPhysicEntity CurrentPhysicEntity;
         public bool IsFixedToMap = false;
         public RectF TriggerZone = new RectF(0, 0, 0, 0);
-        public event Func<Vector2, bool> TriggerDelegate = null;
+        public event Func<RectF, bool> TriggerDelegate = null;
         public string Description = "Default Zone Entity";
-        public int invokeCount = 0;
-        public TwoStat Condition = TwoStat.None;
-        public MessageEntity InformationSource = new();
+        public int InvokeCount = 0;
+        public Stator ZoneStator =new Stator();
+        public MessageEntity InformationSource = new();  
 
-        public bool BindDelegate(Func<Vector2, bool> _delegate)
+        public ZoneEntity(IPhysicEntity physicEntity , TwoStatus TriggerState)
+        {
+            CurrentPhysicEntity = physicEntity;
+            ZoneStator = new Stator(TriggerState);
+        }
+
+        public bool BindDelegate(Func<RectF, bool> _delegate)
         {
             if (_delegate == null)
             {
@@ -419,28 +324,44 @@ namespace DotAge.Core.Model
             }
         }
 
-        public bool CheckTrigger(Vector2 _position , TwoStat _condition)
+        public bool CheckTrigger()
         {
-            if (RectF.IsContain(TriggerZone  , _position) && (_condition == Condition || Condition == TwoStat.Any))
-            {
-                return true;
-            }
-            return false;
-        }
-
-        public bool Trigger(Vector2 TPosition , TwoStat _condition)
-        {
-            if (CheckTrigger(TPosition , _condition) == false)
-            {
-                return false;
-            }
             if (TriggerDelegate == null)
             {
                 return false;
             }
-            TriggerDelegate.Invoke(TPosition);
-            invokeCount++;
-            return true;
+            if (RectF.IsContain(TriggerZone , CurrentPhysicEntity.PhysicProperty.CrashBox))
+            {
+                ZoneStator.Update(true);
+                if (ZoneStator.IsTriggered() == true)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            else 
+            {
+                ZoneStator.Update(false);
+                return false;
+            }
+        }
+
+        public bool Trigger()
+        {   
+            if (CheckTrigger() == false)
+            {
+                return false;
+            }
+            else
+            {
+                TriggerDelegate.Invoke(RectF.CrossZone(TriggerZone, CurrentPhysicEntity.PhysicProperty.CrashBox));
+                InvokeCount++;
+                return true;
+            }
+
         }
     }
 
