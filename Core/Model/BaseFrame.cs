@@ -23,7 +23,23 @@ namespace DotAge.Core.Model
         ItemInformation? OnClick();
     }
 
-    class GameEntity
+    interface IEntityProperty
+    {
+        public Entity SourceEntity { get; set; }
+
+    }
+
+    public class EntityProperty : IEntityProperty
+    {
+        public Entity SourceEntity { get; set; }
+
+        public EntityProperty()
+        {
+
+        }
+    }
+
+    public class GameEntity : EntityProperty
     {
         public float LastHealth = 100f;
         public float Health = 100f;
@@ -31,8 +47,11 @@ namespace DotAge.Core.Model
         public Ray ShootingPostion { get; set; }
         public string Name { get; set; }
         public bool Visibility { get; set; } = true;
+        public List<Entity> KilledEntity = new List<Entity>();
+        public Entity BeingKilledEntity = null;
         public bool IsRenderFollowCrashbox { get; set; } = false;
-        public float Money = 100f;
+        public float Money = 0f;
+        public bool IsAlive { get { return Health > 0; } }
 
         public Dictionary<Type, int> ProductCount = new Dictionary<Type, int>();
 
@@ -44,21 +63,31 @@ namespace DotAge.Core.Model
             }
         }
 
-        public float SetHealth(float _health)
+        public GameEntity()
+        {
+
+        }
+
+        public float SetHealth(float _health , Entity Source)
         {
             LastHealth = Health;
             Health = _health;
+            if (Health < 0)
+            {
+                BeingKilledEntity = Source;
+                Source.Kill(SourceEntity);
+            }
             //HealthSetEvent?.Invoke(Health , MaxHealth);
             return Health;
         }
 
-        public float ModifyHealth(float _health)
+        public float ModifyHealth(float _health , Entity Source)
         {
             if (Health + _health > MaxHealth)
             {
                 _health = MaxHealth - Health;
             }
-            SetHealth(Health + _health);
+            SetHealth(Health + _health , Source);
             return Health;
         }
 
@@ -115,7 +144,7 @@ namespace DotAge.Core.Model
         }
     }
 
-    class RenderEntity
+    public class RenderEntity : EntityProperty
     {
         public TextureSprite Sprite = new TextureSprite();
         public RenderEntity()
@@ -148,9 +177,10 @@ namespace DotAge.Core.Model
         }
     }
 
-    class PhysicEntity
+    public class PhysicEntity : EntityProperty
     {
         public Path PathNodes = new Path();
+        public Pioneer Pioneer = new Pioneer();
         public Vector2 Force = new Vector2();//m^2/ms
         public float SpeedLength = 100f;
         public Vector2 SpeedForward = new Vector2(0, 0); //m/ms
@@ -185,19 +215,22 @@ namespace DotAge.Core.Model
             return true;
         }
 
-        public bool UpdateWish(Vector2 Fiction = new Vector2(), float Tick = 10)
+        public bool UpdateWish(Vector2 Fiction = new Vector2(), int Tick = 10)
         {
+            /*
             if (PathNodes.GetNodes.Count == 1)
             {
                 Console.WriteLine("PathNodes is Empty , Please Add Nodes First");
             }
             SpeedForward = PathNodes.Update(Position);
-            WishForward += MathTool.MinVector2(PathNodes.RemainTarget, Tick * (SpeedVec + (Tick / 1000 * (Force - Fiction) / 2)) / 1000);
+            */
+            WishForward += Pioneer.Update(Tick , SpeedLength);
             return true;
         }
 
         public bool Update(Vector2 Fiction = new Vector2(), float Tick = 10)
         {
+            UpdateWish();
             Position += WishForward;
             WishForward = new Vector2(0, 0);
 
@@ -294,7 +327,7 @@ namespace DotAge.Core.Model
 
     }
 
-    class ZoneEntity
+    public class ZoneEntity
     {
         public IPhysicEntity CurrentPhysicEntity;
         public bool IsFixedToMap = false;
@@ -365,8 +398,9 @@ namespace DotAge.Core.Model
         }
     }
 
-    class MessageEntity
+    public class MessageEntity
     {
         public ItemInformation MessageItem = ItemInformation.NullItem;
+        public string Message { get; set; } = "default";
     }
 }

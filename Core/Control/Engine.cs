@@ -17,9 +17,10 @@ using Microsoft.Xna.Framework.Input;
 
 namespace DotAge.Core.Control
 {
-    internal class Engine
+    public class Engine
     {
         private readonly Version Engine_Version = new (0, 2, 0);
+        public EngineAccessor CurrentEngineAccessor = new EngineAccessor();
 
         public Graphic CurrentGrapic = null;
         public GameData GameData = new GameData();
@@ -32,6 +33,7 @@ namespace DotAge.Core.Control
 
         public Engine()
         {
+            CurrentEngineAccessor.Initialize(this);
             CurrentGrapic = new Graphic();
             
             Thread GrapicThread = new Thread(() => CurrentGrapic.Run())
@@ -93,10 +95,11 @@ namespace DotAge.Core.Control
                 }
             }
 
-            Soildre item1 = (Soildre)CreateEntity(new Soildre()
+            Soildre item1 = (Soildre)CreateEntity(new Soildre(CurrentEngineAccessor)
             {
                 PhysicProperty = new PhysicEntity()
                 {
+                    SpeedLength = 0.5f,
                     Position = new Vector2(640, 320),
                     Size = new Vector2(32, 32),
                     PathNodes = new Path()
@@ -106,7 +109,33 @@ namespace DotAge.Core.Control
                     }
                 },
             });
+
+
+            Zombie item2 = (Zombie)CreateEntity(new Zombie(CurrentEngineAccessor)
+            {
+                PhysicProperty = new PhysicEntity()
+                {
+                    SpeedLength= 0.1f,
+                    Position = new Vector2(0, 0),
+                    Size = new Vector2(32, 32),
+                },
+                GameProperty = new GameEntity()
+                {
+                    Health = 500f,
+                }
+            });
+
+            Turret item3 = (Turret)CreateEntity(new Turret(CurrentEngineAccessor)
+            {
+                Parent = item1,
+                PhysicProperty = new PhysicEntity()
+                {
+                    Position = new Vector2(800, 320),
+                    Size = new Vector2(32, 32),
+                },
+            });
             EntityControler entityControler = new(item1);
+            entityControler.EngineAccess = CurrentEngineAccessor;
             GameData.AddControler(entityControler);
 
             ZoneEntity _moveLeft = new ZoneEntity(Controlers.MouseEntity , TwoStatus.Any)
@@ -143,12 +172,18 @@ namespace DotAge.Core.Control
             GameData.ZoneEntities.Add(_moveTop);
             GameData.ZoneEntities.Add(_moveBottom);
         }
-
+        
         public bool MainLoop(string[] args)
         {
+            Script script = new Script(CurrentEngineAccessor);
             while (true)
             {
                 DateTime StartExcute = DateTime.Now;
+                if (CurrentEngineAccessor != null)
+                {
+                    script.Update();
+                }
+                
                 //START EXCUTE
                 if (GraphicEventAble)
                 {
@@ -188,6 +223,20 @@ namespace DotAge.Core.Control
                     foreach (var item in GameData.GameEntities)
                     {
                         item.Update();
+                        foreach (var item2 in GameData.GameEntities)
+                        {
+                            if (item != item2)
+                            {
+                                if (RectF.IsContain(item.PhysicProperty.CrashBox,item2.PhysicProperty.CrashBox))
+                                {
+                                    item.Crash(item2);
+                                }
+                            }
+                        }
+                        if (item.GameProperty.IsAlive == false)
+                        {
+                            RemoveEntityList.Add(item);
+                        }
                     }
                     GameTime++;
                 }
@@ -210,11 +259,12 @@ namespace DotAge.Core.Control
             return true;
         }
 
-        public static List<Entity> CreateEntityList = new();
-        public static List<Entity> RemoveEntityList = new();
+        public List<Entity> CreateEntityList = new();
+        public List<Entity> RemoveEntityList = new();
 
         public Entity CreateEntity(Entity entity)
         {
+            entity.EngineAccess = CurrentEngineAccessor;
             GameData.AddEntity(entity);
             CurrentGrapic.RenderObjects.Add(entity.RenderProperty.Sprite);
             return entity;
@@ -226,8 +276,66 @@ namespace DotAge.Core.Control
             {
                 return false;
             }
+            entity.EngineAccess = null;
             CurrentGrapic.RenderObjects.Remove(entity.RenderProperty.Sprite);
             return GameData.RemoveEntity(entity);
+        }
+
+        public bool CreateMessage(MessageEntity messageEntity)
+        {
+            TextSprite sprite = new TextSprite();
+            sprite.TintColor = Color.White;
+            sprite.TextSource = messageEntity;
+            CurrentGrapic.RenderObjects.Add(sprite);
+
+            return true;
+        }
+    }
+
+    public class EngineAccessor//将引擎访问器分配给需要访问其他类的类
+    {
+        public Func<Entity> CreateEntity;
+        public Func<Entity , bool> AddEntity;
+        public Func<Entity , bool> RemoveEntity;
+        public Func<List<Entity>> GetAllEntities;
+        public Func<string, TextureRegion> GetTextureRegion;
+        public Func<int> GetGameTime;
+        public Func<MessageEntity , bool> AddMessageEntity;
+
+        public bool Initialize(Engine engine)
+        {
+            CreateEntity = () =>
+            {
+                Entity entity = new Entity(this);
+                return entity;
+            };
+            AddEntity = (entity) =>
+            {
+                engine.CreateEntityList.Add(entity);
+                return true;
+            };
+            RemoveEntity = (entity) =>
+            {
+                engine.RemoveEntityList.Add(entity);
+                return true;
+            };
+            GetAllEntities = () =>
+            {
+                return engine.GameData.GameEntities;
+            };
+            GetTextureRegion = (name) =>
+            {
+                return TextureManager.GetTextureRegionByName(name);
+            };
+            GetGameTime = () =>
+            {
+                return engine.GameTime;
+            };
+            AddMessageEntity = (message) =>
+            {
+                return engine.CreateMessage(message);
+            };
+            return true;
         }
     }
 }

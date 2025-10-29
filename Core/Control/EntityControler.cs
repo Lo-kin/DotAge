@@ -6,12 +6,14 @@ using System.Linq;
 using Microsoft.Xna.Framework;
 using DotAge.Core.Model.Delegates;
 using DotAge.Core.Model;
+using System.Security.Cryptography.X509Certificates;
 
 namespace DotAge.Core.Control
 {
-    class EntityControler
+    public class EntityControler
     {
         public int ID = -1;
+        public EngineAccessor EngineAccess = null;
         public Entity ExcuteEntity = null;
         public List<(Keys , TwoStatus)> FrameKeys = new();
         public List<(MouseButton , TwoStatus)> FrameMouse = new();
@@ -51,7 +53,8 @@ namespace DotAge.Core.Control
             {
                 BindKey = Keys.S,
                 TriggerStat = TwoStatus.Active,
-                ControlerFuncDelegate = (ClickStat, ClickPos) => {Move(Vector2.UnitY); return ItemInformation.NullItem; },
+                ControlerFuncDelegate = (ClickStat, ClickPos) => {
+                    Move(Vector2.UnitY); return ItemInformation.NullItem; },
                 ControlerFuncescription = "MoveDOWN"
             };
             ControlerFunc _left = new()
@@ -69,6 +72,36 @@ namespace DotAge.Core.Control
                     Move(Vector2.UnitX); return ItemInformation.NullItem; },
                 ControlerFuncescription = "MoveRIGHT"
             };
+            ControlerFunc _build = new()
+            {
+                BindKey = Keys.B,
+                TriggerStat = TwoStatus.ActiveToFreeze,
+                ControlerFuncDelegate = (ClickStat, ClickPos) =>
+                {
+                    if (EngineAccess != null)
+                    {
+                        if (ExcuteEntity.GameProperty.Money >= 1)
+                        {
+                            EngineAccess.AddEntity(new Turret(EngineAccess)
+                            {
+                                Parent = ExcuteEntity,
+                                PhysicProperty = new PhysicEntity()
+                                {
+                                    Position = ExcuteEntity.PhysicProperty.Position + (ExcuteEntity.PhysicProperty.Pioneer.Direct * 16),
+                                    Size = new Vector2(32, 32),
+                                }
+                            });
+                            ExcuteEntity.GameProperty.Money--;
+                        }
+
+                    }
+
+
+                    ItemInformation? ReturnMessage = null;
+                    return ReturnMessage;
+                },
+                ControlerFuncescription = "Build At Position"
+            };
             ControlerFunc _leftmouse = new()
             {
                 BindMouseButton = MouseButton.Left,
@@ -83,15 +116,19 @@ namespace DotAge.Core.Control
             {
                 BindMouseButton = MouseButton.Right,
                 TriggerStat = TwoStatus.ActiveToFreeze,
-                ControlerFuncDelegate = (ClickStat, ClickPos) => { ExcuteEntity.GameProperty.ModifyMoney(-0.01f); return ItemInformation.NullItem; },
+                ControlerFuncDelegate = (ClickStat, ClickPos) => { 
+                    ExcuteEntity.GameProperty.ModifyMoney(-0.01f); return ItemInformation.NullItem; },
                 ControlerFuncescription = "Target To Position"
             };
+
             RegisterKey(_up);
             RegisterKey(_down);
             RegisterKey(_left);
             RegisterKey(_right); 
             RegisterMouse(_leftmouse);
             RegisterMouse(_rightmouse);
+            RegisterKey(_esc);
+            RegisterKey(_build);
         }
 
         public bool RegisterKey(dynamic _controlerFunc)
@@ -115,6 +152,7 @@ namespace DotAge.Core.Control
                 {
                     KeyDelegate[_keyboardKey.Item1].Invoke(_keyboardKey.Item2 , Vector2.Zero);
                 }
+
             }
             foreach (var _mouseKey in FrameMouse)
             {
@@ -123,7 +161,7 @@ namespace DotAge.Core.Control
                     MouseDelegate[_mouseKey.Item1].Invoke(_mouseKey.Item2, Controlers.CurrentMousePosition.ToVector2());
                 }
             }
-            ExcuteEntity.PhysicProperty.WishForward += MoveOprate;
+            ExcuteEntity.PhysicProperty.Pioneer.UpdateDirect(MoveOprate);
             MoveOprate = new Vector2(0, 0);
             FrameKeys.Clear();
             FrameMouse.Clear();

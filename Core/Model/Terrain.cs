@@ -13,11 +13,11 @@ namespace DotAge.Core.Model
     {
         public RenderEntity RenderEntity { get; set; } = new RenderEntity();
         public LocationPhysicEntity LocalPhysicEntity { get; set; } = new LocationPhysicEntity();
-        //public ZoneEntity ZoneEntity { get; set; } = new ZoneEntity();
+        public ZoneEntity ZoneEntity { get; set; } = new ZoneEntity(null , Control.TwoStatus.Active);
         public MessageEntity MessageFrame { get; set; } = new MessageEntity();
         public Terrain()
         {
-
+            //ZoneEntity = new ZoneEntity(LocalPhysicEntity, Control.TwoStatus.Active);
         }
 
         public void UpdatePosition()

@@ -10,7 +10,7 @@ using Microsoft.Xna.Framework;
 
 namespace DotAge.Core.Model
 {
-    class Stator
+    public class Stator
     {
         public bool LastState { get; set; } = false;
         public bool CurrentState { get; set; } = false;
@@ -90,7 +90,7 @@ namespace DotAge.Core.Model
         }
     }
 
-    class Group
+    public class Group
     {
         public string Name { get; set; }
         public int ID { get; set; }
@@ -165,13 +165,13 @@ namespace DotAge.Core.Model
 
     }
 
-    struct Ray
+    public struct Ray
     {
         public Vector2 Position;
         public Vector2 Direct;
     }
 
-    struct RectF
+    public struct RectF
     {
         public float Right { get { return Position.X + Size.X; } }
         public float Left { get { return Position.X; } }
@@ -318,7 +318,7 @@ namespace DotAge.Core.Model
         }
     }
 
-    struct CrashInfo
+    public struct CrashInfo
     {
         public int XCrashDirecton { get; set; }
         public int YCrashDirecton { get; set; }
@@ -426,7 +426,7 @@ namespace DotAge.Core.Model
         }
     }
 
-    enum Direction
+    public enum Direction
     {
         Middle = 0,
         Top = 1,

@@ -61,7 +61,10 @@ namespace DotAge.Core.Control
                 ChangeMouseStat[(MouseButton)item] = GetMouseChangeStat((MouseButton)item);
             }
 
-            LastKeyStat = NowKeyStat;
+            foreach (var item in Enum.GetValues(typeof(Keys)))
+            {
+                LastKeyStat[(Keys)item] = NowKeyStat.ContainsKey((Keys)item) ? NowKeyStat[(Keys)item] : KeyState.Up;
+            }
             NowKeyStat.Clear();
             foreach (var item in Enum.GetValues(typeof(Keys)))
             {
@@ -140,9 +143,13 @@ namespace DotAge.Core.Control
             {
                 return TwoStatus.Active;
             }
-            else
+            else if (NowKeyStat[key] == KeyState.Up && LastKeyStat[key] == KeyState.Up)
             {
                 return TwoStatus.Freeze;
+            }
+            else
+            {
+                return TwoStatus.None;
             }
         }
     }

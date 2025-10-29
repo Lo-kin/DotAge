@@ -14,11 +14,11 @@ using Microsoft.Xna.Framework.Content;
 
 namespace DotAge.Core.View
 {
-    class GameData
+    public class GameData
     {
         public List<EntityControler> EntityControlers = new List<EntityControler>();
         public EntityControler MainControler = null;
-        public Dictionary<int, Group> GameGroups { get; } = new Dictionary<int, Group>();
+        public List<Group> GameGroups { get; } = new List<Group>();
         public List<Entity> GameEntities { get; } = new List<Entity>();
 
         public List<ZoneEntity> ZoneEntities = new List<ZoneEntity>();
@@ -47,18 +47,15 @@ namespace DotAge.Core.View
             }
         }
 
-        public bool JoinGroup(Creature creature, int GroupID)
+        public bool JoinGroup(Creature creature, Group TargetGroup)
         {
-            if (creature == null)
+            if (creature == null || TargetGroup == null)
             {
                 return false;
             }
             else
             {
-                if (GameGroups.ContainsKey(GroupID))
-                {
-                    GameGroups[GroupID].JoinCreature(ref creature);
-                }
+                TargetGroup.JoinCreature(ref creature);
                 return true;
             }
         }

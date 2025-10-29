@@ -17,7 +17,7 @@ namespace DotAge.Core.Model.Delegates
     public delegate ItemInformation? ItemInformationDelegate(TwoStatus ClickStat , Vector2 ClickPosition);
     public delegate TRet? AnyDelegate<TVal , TRet>(TVal InvokeStat);
 
-    class ControlerFunc
+    public class ControlerFunc
     {
         public Keys BindKey = Keys.None;
         public MouseButton BindMouseButton = MouseButton.None;
@@ -28,7 +28,7 @@ namespace DotAge.Core.Model.Delegates
 
         public ItemInformation? Invoke(TwoStatus InvokeStat , Vector2 CLickPos)
         {
-            if (ControlerFuncDelegate != null && InvokeStat == TriggerStat)
+            if (ControlerFuncDelegate != null && (InvokeStat == TriggerStat || TriggerStat == TwoStatus.Any))
             {
                 invokeCount++;                
                 return ControlerFuncDelegate.Invoke(InvokeStat , CLickPos);

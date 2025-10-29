@@ -1,4 +1,5 @@
 ﻿using DotAge.Core.Control;
+using DotAge.Core.Model;
 using DotAge.Core.Model.Dialogue;
 using DotAge.Core.Model.Economy;
 using DotAge.Core.Model.Region;
@@ -21,7 +22,7 @@ namespace DotAge.Core.View
         public static Camera2D ViewCamera = new Camera2D();
         private SpriteBatch DynamicSprite;
         private SpriteBatch StaticSprite;
-        public SpriteFont _font;
+        public static SpriteFont _font;
         public List<Sprite> RenderObjects = new List<Sprite>();
         public bool IsLoaded = false;
 
@@ -64,26 +65,37 @@ namespace DotAge.Core.View
             
             base.Update(gameTime);
         }
+        int t = 0;
+        int c = 0;
         protected override void Draw(GameTime gameTime)
         {
-            
-            //GraphicsDevice.Clear(Color.Black);
+            t++;
+            c = (int)(255 * (Math.Cos(t * 0.01f) + 1));
+            GraphicsDevice.Clear(Color.Black);
             DynamicSprite.Begin(transformMatrix:ViewCamera.View);
             StaticSprite.Begin();
-            foreach (var item in RenderObjects)
+            try
             {
-                if (item.IsVisible == true)
+                foreach (var item in RenderObjects)
                 {
-                    if (item.IsStatic == true)
+                    if (item.IsVisible == true)
                     {
-                        item.Draw(StaticSprite);
-                    }
-                    else
-                    {
-                        item.Draw(DynamicSprite);
+                        if (item.IsStatic == true)
+                        {
+                            item.Draw(StaticSprite);
+                        }
+                        else
+                        {
+                            item.Draw(DynamicSprite);
+                        }
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Render Error:" + ex.Message);
+            }
+
             DynamicSprite.End();
             StaticSprite.End();
             base.Draw(gameTime);
@@ -163,10 +175,9 @@ namespace DotAge.Core.View
 
         public override bool Draw(SpriteBatch spriteBatch)
         {
-            
             if (CheckVaild() == true)
             {
-                spriteBatch.Draw(Region.Texture,Position, Region.TextureRect, TintColor, Rotation, Origin, Scale, Effect, LayerDepth);
+                spriteBatch.Draw(Region.Texture , destinationRectangle:new Rectangle(Position.ToPoint(),Size.ToPoint()) , sourceRectangle:Region.TextureRect , TintColor, Rotation, Origin, Effect, LayerDepth);
                 return true;
             }
             else
@@ -178,15 +189,17 @@ namespace DotAge.Core.View
 
     public class TextSprite : Sprite
     {
-        public string Text = string.Empty;
-        public SpriteFont Font = null;
+        public MessageEntity TextSource = null;
+        
+        public SpriteFont Font = Graphic._font;
         public float Scale = 1.0f;
         public TextSprite()
         {
+
         }
-        public TextSprite(string text, SpriteFont font, Vector2 position, Color color, float rotation, Vector2 origin, SpriteEffects effect, float layerDepth, float scale)
+        public TextSprite(MessageEntity text, SpriteFont font, Vector2 position, Color color, float rotation, Vector2 origin, SpriteEffects effect, float layerDepth, float scale)
         {
-            Text = text;
+            TextSource = text;
             Font = font;
             Position = position;
             TintColor = color;
@@ -209,7 +222,7 @@ namespace DotAge.Core.View
         {
             if (CheckVaild() == true)
             {
-                spriteBatch.DrawString(Font, Text, Position, TintColor, Rotation, Origin, Scale, Effect, LayerDepth);
+                spriteBatch.DrawString(Font, TextSource.Message, Position, TintColor, Rotation, Origin, Scale, Effect, LayerDepth);
                 return true;
             }
             else
