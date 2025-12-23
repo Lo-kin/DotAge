@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using DotAge.Core.Control;
 using DotAge.Core.Model.Dialogue;
@@ -11,48 +12,122 @@ using Microsoft.Xna.Framework;
 
 namespace DotAge.Core.Model
 {
+    public interface IIndexable
+    {
+        public List<BaseIndex> BelongIndex { get; set; }
+
+        public bool UpdateBelongIndex(RectF CrashBox)
+        {
+            foreach (var index in BelongIndex.ToArray())
+            {
+                if (index.IndexRange.Contains(CrashBox) == false)
+                {
+                    BelongIndex.Remove(index);
+                }
+            }
+            return true;
+        }
+
+        public bool RegisterIndex(BaseIndex index)
+        {
+            if (index != null)
+            {
+                BelongIndex.Add(index);
+                return true;
+            }
+            return false;
+        }
+
+        public bool UnbindAllIndex()
+        {
+            foreach (var index in BelongIndex.ToArray())
+            {
+                index.RemoveEntity(this as Entity);
+                index.RemoveCrashBox(this as IPhysicEntity);
+            }
+            BelongIndex.Clear();
+            return true;
+        }
+
+        public bool UnregisterIndex(BaseIndex index)
+        {
+            if (index != null)
+            {
+                return BelongIndex.Remove(index);
+            }
+            return false;
+        }
+
+        public List<Entity> GetRangeEntity()
+        {
+            return [.. BelongIndex.SelectMany(index => index.EntityIndex).Distinct()];
+        }
+
+        public List<IPhysicEntity> GetRangeCrashBox()
+        {
+            return [.. BelongIndex.SelectMany(index => index.CrashIndex).Distinct()];
+        }
+    }
+
     public interface IPhysicEntity
     {
-        PhysicEntity PhysicProperty { get; set; }
+        PhysicBase PhysicProperty { get; set; }
+
+        public bool OnCrash(IPhysicEntity physicEntity)
+        {
+            return false;
+        }
+
     }
 
     public interface IRenderEntity
     {
         RenderEntity RenderProperty { get; set; }
+        public virtual bool UpdateRender() => true;
     }
     public interface IGameEntity
     {
         GameEntity GameProperty { get; set; }
+        public bool IsAlive() => GameProperty.IsAlive;
     }
 
     class AbstructPhysicEntity : IPhysicEntity
     {
-        public PhysicEntity PhysicProperty { get; set; }
+        public PhysicBase PhysicProperty { get; set; }
     }
 
-    public class Entity : IPhysicEntity, IRenderEntity, IGameEntity
+    public class Entity : IPhysicEntity, IRenderEntity, IGameEntity , IIndexable
     {
         public int ID = -1;
         public EngineAccessor EngineAccess = null;
         public List<Entity> Children = new List<Entity>();
         public Entity Parent = null;
-        public PhysicEntity PhysicProperty { get; set; } = new PhysicEntity();
+        public PhysicBase PhysicProperty { get; set; } = new PhysicEntity();
         public RenderEntity RenderProperty { get; set; } = new RenderEntity();
         public GameEntity GameProperty { get; set; } = new GameEntity();
+        public List<BaseIndex> BelongIndex { get; set; } = new List<BaseIndex>();
+
         public event Action OnUpdate;
+
+        public bool IsRenderFollowPhysic = true;
 
         public Entity(EngineAccessor accessor)
         {
-            PhysicProperty.SourceEntity = this;
-            RenderProperty.SourceEntity = this;
-            GameProperty.SourceEntity = this;
             this.EngineAccess = accessor;
+
             RenderProperty.LoadTexture("MissingTexture");
             OnUpdate += () => 
             {
-                PhysicProperty.Update();
-                RenderProperty.UpdatePosition(PhysicProperty.Position);
-                RenderProperty.UpdateSize(PhysicProperty.Size);
+                if (IsRenderFollowPhysic == true)
+                {
+                    RenderProperty.UpdatePosition(PhysicProperty.Position);
+                    RenderProperty.UpdateSize(PhysicProperty.Size);
+                }
+                UpdateBelongIndex();
+            };
+            PhysicProperty.OnCrashEvent += (pb) => 
+            {
+                OnCrash(pb);
             };
         }
 
@@ -121,7 +196,7 @@ namespace DotAge.Core.Model
             return false;
         }
 
-        public virtual void Crash(Entity BeingCrashedEntity)
+        public virtual void OnCrash(IPhysicEntity BeingCrashedEntity)
         {
 
         }
@@ -135,21 +210,74 @@ namespace DotAge.Core.Model
         {
             if (entity == null)
             {  return false; }
-            var parent = Parent;
-            while (true)
+            var parent = this;
+            if ( parent != null)
             {
-                if (parent.Parent == null)
+                while (true)
                 {
-                    break;
-                }
-                else
-                {
-                    parent = parent.Parent;
+                    if (parent.Parent == null)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        parent = parent.Parent;
+                    }
                 }
             }
             parent.GameProperty.KilledEntity.Add(entity);
             entity.GameProperty.BeingKilledEntity = parent;
+            if (entity.GameProperty.KilledEntity.Count % 2 == 0)
+            {
+                parent.GameProperty.SkillPoint++;
+            }
             return true;
+        }
+
+        public bool UpdateBelongIndex()
+        {
+            BelongIndex = EngineAccess?.GetRangeIndex(new RectF(PhysicProperty.Position , PhysicProperty.Size)) ?? [];
+            return true;
+        }
+
+        public bool UnbindAllIndex()
+        {
+            foreach (var index in BelongIndex.ToArray())
+            {
+                index.RemoveEntity(this as Entity);
+                index.RemoveCrashBox(this as IPhysicEntity);
+            }
+            BelongIndex.Clear();
+            return true;
+        }
+
+        public bool RegisterIndex(BaseIndex index)
+        {
+            if (index != null)
+            {
+                BelongIndex.Add(index);
+                return true;
+            }
+            return false;
+        }
+
+        public bool UnregisterIndex(BaseIndex index)
+        {
+            if (index != null)
+            {
+                return BelongIndex.Remove(index);
+            }
+            return false;
+        }
+
+        public List<Entity> GetRangeEntity()
+        {
+            return [.. BelongIndex.SelectMany(index => index.EntityIndex).Distinct()];
+        }
+
+        public List<IPhysicEntity> GetRangeCrashBox()
+        {
+            return [.. BelongIndex.SelectMany(index => index.CrashIndex).Distinct()];
         }
     }
 
@@ -175,40 +303,34 @@ namespace DotAge.Core.Model
 
     class Soildre : Creature
     {
-        public MessageEntity me = new MessageEntity();
         public Soildre(EngineAccessor accessor) : base(accessor)
         {
-            RenderProperty.LoadTexture("Human_Engineer");
-            EngineAccess.AddMessageEntity(me);
+            RenderProperty.LoadTexture("TV_Happy");
+            
         }
 
         public override bool Update()
         {
-            me.Message = $"Health={GameProperty.Health}\nMoney={GameProperty.Money}";
-            foreach (var item in GameProperty.KilledEntity)
-            {
-                me.Message += $"\n{item}";
-            }
-            me.Message += $"\nBeKilled={GameProperty.BeingKilledEntity}";
-
             return base.Update();
         }
     }
 
     public class Zombie : Creature
     {
+
         public Zombie(EngineAccessor accessor) : base(accessor)
         {
-            RenderProperty.LoadTexture("Tree");
+            RenderProperty.LoadTexture("TV_Normal");
+
         }
 
-        public override void Crash(Entity _entity)
+        public override void OnCrash(IPhysicEntity _entity)
         {
             if (_entity is Zombie == false)
             {
-                _entity.GameProperty.ModifyHealth(-0.5f , this);
+                (_entity as Zombie).GameProperty.ModifyHealth(-0f , this);
             }
-            base.Crash(_entity);
+            base.OnCrash(_entity);
         }
 
         public override bool Update()
@@ -217,10 +339,10 @@ namespace DotAge.Core.Model
             {
                 return base.Update();
             }
-            var target = EngineAccess.GetAllEntities().OfType<Soildre>();
+            var target = GetRangeEntity().OfType<Soildre>();
             if (target.Count() != 0)
             {
-                PhysicProperty.Pioneer.UpdateDirect(target.First().PhysicProperty.Position - PhysicProperty.Position);
+                (PhysicProperty as PhysicEntity).Pioneer.UpdateDirect(target.First().PhysicProperty.Position - PhysicProperty.Position);
             }
             return base.Update();
         }
@@ -232,6 +354,8 @@ namespace DotAge.Core.Model
         public float AttackRange = 500;
         public int ShootInterval = 20;
         public int During = 0;
+        public int BulletPCount = 1;
+        public float BullectDamage = 9;
         public Turret(EngineAccessor accessor) : base(accessor)
         {
             RenderProperty.LoadTexture("Turret_Gun");
@@ -268,10 +392,12 @@ namespace DotAge.Core.Model
                     var bullet = new Bullet(EngineAccess) 
                     {
                         Parent = this,
+                        PierceCount = BulletPCount,
+                        Damage = BullectDamage,
                         PhysicProperty = new PhysicEntity()
                         {
                             Position = this.PhysicProperty.Position,
-                            SpeedLength = 2f,
+                            SpeedLength = 5f,
                             Size = new Vector2(8, 8),
                             Pioneer = new Pioneer()
                             {
@@ -291,7 +417,7 @@ namespace DotAge.Core.Model
             Entity? ScanEntity = null;
             if (EngineAccess != null)
             {
-                foreach (var entity in EngineAccess.GetAllEntities())
+                foreach (var entity in GetRangeEntity())
                 {
                     if (entity is Zombie && entity != this && entity.Children.Contains(this) == false)
                     {
@@ -353,11 +479,11 @@ namespace DotAge.Core.Model
             PhysicProperty.SpeedLength = 0.5f;
         }
 
-        public override void Crash(Entity entity)
+        public override void OnCrash(IPhysicEntity entity)
         {
             if (entity is Zombie)
             {
-                entity.GameProperty.ModifyHealth(-Damage , this);
+                (entity as Zombie).GameProperty.ModifyHealth(-Damage , this);
                 PierceCount--;
                 if (PierceCount <= 0)
                 {
@@ -372,7 +498,7 @@ namespace DotAge.Core.Model
             {
 
             }
-            base.Crash(entity); 
+            base.OnCrash(entity); 
         }
 
         public override bool Update()
@@ -394,7 +520,7 @@ namespace DotAge.Core.Model
         public GoldMine(EngineAccessor accessor) : base(accessor)
         {
             GameProperty.Name = "Gold_Mine";
-            RenderProperty.LoadTexture("Mine_Gold");
+            RenderProperty.LoadTexture("MissingTexture");
         }
 
         public override void Dig()
@@ -403,15 +529,90 @@ namespace DotAge.Core.Model
             base.Dig();
         }
 
-        public override void Crash(Entity BeingCrashedEntity)
+        public override void OnCrash(IPhysicEntity BeingCrashedEntity)
         {
-            if (BeingCrashedEntity is GoldMine == false)
+            if (BeingCrashedEntity is Soildre)
             {
-                BeingCrashedEntity.GameProperty.ModifyMoney(1f);
+                (BeingCrashedEntity as Soildre).GameProperty.ModifyMoney(1f);
                 EngineAccess?.RemoveEntity(this);
             }
 
-            base.Crash(BeingCrashedEntity);
+            base.OnCrash(BeingCrashedEntity);
+        }
+    }
+
+    class Door : Entity
+    {
+        public bool IsOpen = false;
+        public bool IsProcessing = false;
+        public float process = 0f;
+
+        public Door(EngineAccessor accessor) : base(accessor)
+        {
+            IsRenderFollowPhysic = false;
+            RenderProperty.LoadTexture("MissingTexture");
+            RenderProperty.Sprite.Size = new Vector2(32, 64);
+            PhysicProperty.Size = new Vector2(32, 64);
+        }
+
+        public bool Use()
+        {
+            if (IsProcessing == true)
+            {
+                return false;
+            }
+            IsOpen = !IsOpen;
+            if (IsOpen == true)
+            {
+                PhysicProperty.Size = new Vector2(0 , 0);
+                RenderProperty.Sprite.Size = new Vector2(0, 0);
+                Thread thread = new Thread(() =>
+                {
+                    IsProcessing = true;
+                    process = 0f;
+                    while (process < 1f)
+                    {
+                        Animating();
+                        Thread.Sleep(10);
+                    }
+                    IsProcessing = false;
+                });
+                thread.Start();
+            }
+            else
+            {
+                RenderProperty.Sprite.Size = new Vector2(32, 64);
+                PhysicProperty.Size = new Vector2(32, 64);
+                Thread thread = new Thread(() =>
+                {
+                    IsProcessing = true;
+                    process = 0f;
+                    while (process < 1f)
+                    {
+                        Animating();
+                        Thread.Sleep(10);
+                    }
+                    IsProcessing = false;
+                });
+                thread.Start();
+            }
+            return true;
+        }
+
+        public bool Animating()
+        {
+            process += 0.01f;
+            if (IsOpen == true)
+            {
+                RenderProperty.Sprite.Size = new Vector2(32 * (1 - process), 64);
+                PhysicProperty.Size = new Vector2(32 * (1 - process), 64 * (1 - process));
+            }
+            else
+            {
+                RenderProperty.Sprite.Size = new Vector2(32 * process, 64);
+                PhysicProperty.Size = new Vector2(32 * process, 64 * process);
+            }
+            return true;
         }
     }
 }

@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DotAge.Core.Control;
+using DotAge.Core.Tools;
 using DotAge.Core.View;
 using Microsoft.Xna.Framework;
 
@@ -70,10 +72,6 @@ namespace DotAge.Core.Model
 
     }
 
-    class BaseStruct
-    {
-    }
-
     public struct ItemInformation
     {
         public static ItemInformation NullItem => new("Null", "This is a null item information.", "This is a null item content.");
@@ -121,7 +119,6 @@ namespace DotAge.Core.Model
             {
                 return new RectF(new Vector2(0, 0), new Vector2(GameSetting.ScreenWidth, GameSetting.ScreenHeight));
                 //用匿名函数来实现类似于矩形的数据绑定如何呢
-
             }
             set
             {
@@ -171,15 +168,43 @@ namespace DotAge.Core.Model
         public Vector2 Direct;
     }
 
+    public struct Line
+    {
+        public Vector2 Start;
+        public Vector2 End;
+    }
+
     public struct RectF
     {
         public float Right { get { return Position.X + Size.X; } }
         public float Left { get { return Position.X; } }
         public float Top { get { return Position.Y; } }
         public float Bottom { get { return Position.Y + Size.Y; } }
-        public Vector2 Center { get { return (Position + Size) / 2; } }
+        public Vector2 Center { get { return Position + (Size / 2); } }
         public Vector2 Position { get; set; } = new Vector2();
         public Vector2 Size { get; set; } = new Vector2();
+
+        public Vector2 GetAngle(Vector2 Pointer)
+        {
+            Vector2 retAngle = Vector2.Zero;
+            if (Pointer.X >= 0)
+            {
+                retAngle.X = Right;
+            }
+            else
+            {
+                retAngle.X = Left;
+            }
+            if (Pointer.Y >= 0)
+            {
+                retAngle.Y = Top;
+            }
+            else
+            {
+                retAngle.Y = Bottom;
+            }
+            return retAngle;
+        }
 
         public static RectF CombineRectangel(RectF rect1, RectF rect2)
         {
@@ -199,38 +224,6 @@ namespace DotAge.Core.Model
             return new RectF(_xL, _yT, _xR, _yB);
         }
 
-        public static (CrashInfo, CrashInfo) Direction(RectF rect1, RectF rect2)
-        {
-            (CrashInfo, CrashInfo) result = (new CrashInfo(), new CrashInfo());
-            if (rect1.Center.X > rect2.Center.X)
-            {
-                result.Item1.XCrashDirecton = -1;
-            }
-            else if (rect1.Center.X < rect2.Center.X)
-            {
-                result.Item1.XCrashDirecton = 1;
-            }
-            else
-            {
-                result.Item1.XCrashDirecton = 0;
-            }
-            if (rect1.Center.Y > rect2.Center.Y)
-            {
-                result.Item1.YCrashDirecton = -1;
-            }
-            else if (rect1.Center.Y < rect2.Center.Y)
-            {
-                result.Item1.YCrashDirecton = 1;
-            }
-            else
-            {
-                result.Item1.YCrashDirecton = 0;
-            }
-            result.Item2 = result.Item1.GetNegative();
-            return result;
-
-        }
-
         public RectF(Vector2 _position, Vector2 _size)
         {
             Position = _position;
@@ -243,6 +236,26 @@ namespace DotAge.Core.Model
             Size = new Vector2(_right - _left, _bottom - _top);
         }
 
+        public Vector2 Cross(RectF rect)
+        {
+            Vector2 xyContain = new Vector2();
+            if (IsContain(this, rect) == true)
+            {
+                RectF TwoRect = CombineRectangel(this, rect);
+                xyContain.X = (TwoRect.Size.X - this.Size.X - rect.Size.X);
+                if (this.Center.X < rect.Center.X)
+                {
+                    xyContain.X *= -1;
+                }
+                xyContain.Y = (TwoRect.Size.Y - this.Size.Y - rect.Size.Y);
+                if (this.Center.Y < rect.Center.Y)
+                {
+                    xyContain.Y *= -1;
+                }
+            }
+            return xyContain;
+        }
+
         public static Vector2 ContainCount(RectF rect1, RectF rect2)
         {
             Vector2 xyContain = new Vector2();
@@ -250,9 +263,62 @@ namespace DotAge.Core.Model
             {
                 RectF TwoRect = CombineRectangel(rect1, rect2);
                 xyContain.X = -TwoRect.Size.X + rect1.Size.X + rect2.Size.X;
+                
                 xyContain.Y = -TwoRect.Size.Y + rect1.Size.Y + rect2.Size.Y;
             }
             return xyContain;
+        }
+
+        public Vector2 RectDirect(RectF DetectRect)
+        {
+            return MathTool.VectorDirect(DetectRect.Center - Center);
+        }
+
+        public static Vector2 RectDirect(RectF CheckLoacation , RectF BeingCheckLocation)
+        {
+            return MathTool.VectorDirect(BeingCheckLocation.Center - CheckLoacation.Center);
+        }
+
+        public static Vector2 CrashSide(PhysicBase CheckLoacation , PhysicBase BeingCheckLocation)
+        {
+            var realDistance = MathTool.AbsVector(CheckLoacation.CrashBox.Center - BeingCheckLocation.CrashBox.Center) - (CheckLoacation.Size / 2) - (BeingCheckLocation.Size / 2);
+            var direct = new Vector2(MathF.Sign(realDistance.X), MathF.Sign(realDistance.Y));
+            if (IsContain(CheckLoacation.CrashBox , BeingCheckLocation.CrashBox))
+            {
+                return direct;
+            }
+            else
+            {
+                if (IsContain(CheckLoacation.WishRange, BeingCheckLocation.WishRange))
+                {
+                    Vector2 twoDistance = Distance(CheckLoacation.CrashBox, BeingCheckLocation.CrashBox);
+                    Vector2 wishmix = CheckLoacation.WishForward - BeingCheckLocation.WishForward;
+                    Vector2 twoWish = new Vector2(MathF.Abs(wishmix.X), MathF.Abs(wishmix.Y));
+                    Vector2 distanceArg = twoDistance + twoWish;
+                    if (distanceArg.X < distanceArg.Y)
+                    {
+                        return new Vector2(0, 1) * direct;
+                    }
+                    else if (distanceArg.X > distanceArg.Y)
+                    {
+                        return new Vector2(1, 0) * direct;
+                    }
+                    else
+                    {
+                        return new Vector2(1, 1) * direct;
+                    }
+                 }
+                else
+                {
+                    return Vector2.Zero;
+                }
+            }
+            return Vector2.Zero;
+        }
+
+        public static Vector2 Distance(RectF CheckRect , RectF BeingCheckRect)
+        {
+            return new Vector2(MathF.Min(MathF.Abs(CheckRect.Left - BeingCheckRect.Right), MathF.Abs(CheckRect.Right - BeingCheckRect.Left)) , MathF.Min(MathF.Abs(CheckRect.Top - BeingCheckRect.Bottom) , MathF.Abs(CheckRect.Bottom - BeingCheckRect.Top)));
         }
 
         public static bool IsContain(RectF rect1, Vector2 point)
@@ -275,8 +341,22 @@ namespace DotAge.Core.Model
             return stat;
         }
 
+        public bool Contains(RectF rect2)
+        {
+            bool stat = false;
+            if (Right > rect2.Left && Left < rect2.Right && Bottom > rect2.Top && Top < rect2.Bottom)
+            {
+                stat = true;
+            }
+            return stat;
+        }
+
         public static RectF CrossZone(RectF rect1, RectF rect2)
         {
+            if (IsContain(rect1, rect2) == false)
+            {
+                return new RectF(0, 0, 0, 0);
+            }
             float xL = MathF.Max(rect1.Left,  rect2.Left);
             float xR = MathF.Min(rect1.Right, rect2.Right);
             float yT = MathF.Max(rect1.Top,   rect2.Top);
@@ -316,123 +396,10 @@ namespace DotAge.Core.Model
             Size += Vec;
             return true;
         }
-    }
 
-    public struct CrashInfo
-    {
-        public int XCrashDirecton { get; set; }
-        public int YCrashDirecton { get; set; }
-
-        public (Direction, Direction) Direct
+        public RectF Copy()
         {
-            get
-            {
-                Direction directionx;
-                Direction directiony;
-                if (XCrashDirecton == -1)
-                {
-                    directionx = Direction.Left;
-                }
-                else if (XCrashDirecton == 1)
-                {
-                    directionx = Direction.Right;
-                }
-                else
-                {
-                    directionx = Direction.Middle;
-                }
-                if (YCrashDirecton == -1)
-                {
-                    directiony = Direction.Top;
-                }
-                else if (YCrashDirecton == 1)
-                {
-                    directiony = Direction.Bottom;
-                }
-                else
-                {
-                    directiony = Direction.Middle;
-                }
-                return (directionx, directiony);
-            }
-            set
-            {
-                if (value.Item1 == Direction.Left)
-                {
-                    XCrashDirecton = -1;
-                }
-                else if (value.Item1 == Direction.Right)
-                {
-                    XCrashDirecton = 1;
-                }
-                else
-                {
-                    XCrashDirecton = 0;
-                }
-                if (value.Item2 == Direction.Top)
-                {
-                    YCrashDirecton = -1;
-                }
-                else if (value.Item2 == Direction.Bottom)
-                {
-                    YCrashDirecton = 1;
-                }
-                else
-                {
-                    YCrashDirecton = 0;
-                }
-            }
+            return new RectF(this.Position , this.Size);
         }
-
-        public void Negative()
-        {
-            XCrashDirecton *= -1;
-            YCrashDirecton *= -1;
-        }
-
-        public CrashInfo GetNegative()
-        {
-            CrashInfo tmp = this;
-            tmp.XCrashDirecton *= -1;
-            tmp.YCrashDirecton *= -1;
-            return tmp;
-        }
-    }
-
-
-    static class VectorHelper
-    {
-        public static Vector2 Direct(Vector2 vector)
-        {
-            Vector2 result = new Vector2();
-
-            if (vector.X > 0)
-            {
-                result.X = 1;
-            }
-            else if (vector.X < 0)
-            {
-                result.X = -1;
-            }
-            if (vector.Y > 0)
-            {
-                result.Y = 1;
-            }
-            else if (vector.Y < 0)
-            {
-                result.Y = -1;
-            }
-            return result;
-        }
-    }
-
-    public enum Direction
-    {
-        Middle = 0,
-        Top = 1,
-        Right = 2,
-        Bottom = 3,
-        Left = 4
-
     }
 }

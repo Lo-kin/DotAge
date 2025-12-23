@@ -22,13 +22,10 @@ namespace DotAge.Core.Control
         public static Dictionary<MouseButton , TwoStatus> ChangeMouseStat = new Dictionary<MouseButton, TwoStatus>();
         public static Dictionary<Keys , TwoStatus> ChangeKeyStat = new Dictionary<Keys, TwoStatus>();
 
-        public static AbstructPhysicEntity MouseEntity = new AbstructPhysicEntity()
+        public static PhysicBase MouseEntity = new LocationEntity()
         {
-            PhysicProperty = new PhysicEntity()
-            {
-                Position = Vector2.Zero,
-                Size = new Vector2(1, 1),
-            }
+            Position = Vector2.Zero,
+            Size = new Vector2(1, 1),
         };
         public static Point CurrentMapMousePosition
         { 
@@ -55,7 +52,7 @@ namespace DotAge.Core.Control
         {
             LastMouseStat = NowMouseStat;
             NowMouseStat = Mouse.GetState();
-            MouseEntity.PhysicProperty.Position = CurrentMousePosition.ToVector2();
+            MouseEntity.Position = CurrentMousePosition.ToVector2();
             foreach (var item in Enum.GetValues(typeof(MouseButton)))
             {
                 ChangeMouseStat[(MouseButton)item] = GetMouseChangeStat((MouseButton)item);

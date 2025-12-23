@@ -19,15 +19,23 @@ namespace DotAge.Core.View
         public List<EntityControler> EntityControlers = new List<EntityControler>();
         public EntityControler MainControler = null;
         public List<Group> GameGroups { get; } = new List<Group>();
-        public List<Entity> GameEntities { get; } = new List<Entity>();
 
         public List<ZoneEntity> ZoneEntities = new List<ZoneEntity>();
         public EntityControler CurrentEntityControler = null;
+        private List<TerrainChunk> MapChunks = new List<TerrainChunk>();
+
+        public Player MainPlayer = new Player();
+        private List<Entity> Entities = new List<Entity>();
+        private List<IPhysicEntity> PhysicEntities = new List<IPhysicEntity>();
+        private List<IRenderEntity> RenderEntities = new List<IRenderEntity>();
+        private List<IGameEntity> GameEntities = new List<IGameEntity>();
+        public List<ILocation> CrashBox = new List<ILocation>();
+
+        public GameIndex GameIndex = new GameIndex();
 
         static GameData()
         {
-            Thread thread = new(() => { while (true) { Thread.Sleep(10000); }; }){Name = "test"};
-            //thread.Start();
+
         }
 
         public bool AddControler(EntityControler _controler)
@@ -60,17 +68,46 @@ namespace DotAge.Core.View
             }
         }
 
-        public int AddEntity(Entity _entity)
+        public bool AddRenderEntity(IRenderEntity entity)
         {
-            if (_entity == null)
+            if (entity == null)
             {
-                return -1;
+                return false;
             }
             else
             {
-                GameEntities.Add(_entity);
-                GameIndex.SetEntity(_entity);
-                return _entity.ID;
+                RenderEntities.Add(entity);
+                return true;
+            }
+        }
+
+        public bool RemoveRenderEntity(IRenderEntity entity)
+        {
+            if (RenderEntities.Contains(entity))
+            {
+                RenderEntities.Remove(entity);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public bool AddEntity(Entity Entity)
+        {
+            if (Entity == null)
+            {
+                return false;
+            }
+            else
+            {
+                GameEntities.Add(Entity);
+                AddPhysicEntity(Entity);
+                RenderEntities.Add(Entity);
+                Entities.Add(Entity);
+                GameIndex.SetEntity(Entity);
+                return true;
             }
         }
 
@@ -79,6 +116,279 @@ namespace DotAge.Core.View
             if (GameEntities.Contains(_entity))
             {
                 GameEntities.Remove(_entity);
+                RemovePhysicEntity(_entity);
+                RenderEntities.Remove(_entity);
+                Entities.Remove(_entity);
+                _entity.UnbindAllIndex();
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public bool AddTerrainChunk(TerrainChunk chunk)
+        {
+            if (chunk == null)
+            {
+                return false;
+            }
+            else
+            {
+                MapChunks.Add(chunk);
+                foreach (var terrain in chunk.Terrains)
+                {
+                    AddPhysicEntity(terrain);
+                }
+                return true;
+            }
+        }
+
+        public bool RemoveTerrainChunk(TerrainChunk chunk)
+        {
+            if (MapChunks.Contains(chunk))
+            {
+                MapChunks.Remove(chunk);
+                foreach (var terrain in chunk.Terrains)
+                {
+                    RemovePhysicEntity(terrain);
+                }
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public bool AddPhysicEntity(IPhysicEntity entity)
+        {
+            if (entity == null)
+            {
+                return false;
+            }
+            else
+            {
+                PhysicEntities.Add(entity);
+                GameIndex.SetCrashBox(entity);
+                return true;
+            }
+        }
+
+        public bool RemovePhysicEntity(IPhysicEntity entity)
+        {
+            if (PhysicEntities.Contains(entity))
+            {
+                PhysicEntities.Remove(entity);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public List<Entity> GetRangeEntity(Vector2 position, float range)
+        {
+            GameIndex.GetRangeIndex(position, range);
+            return null;
+        }
+
+        public List<ILocation> GetRangeCrashBox(RectF WishRange)
+        {
+            List<ILocation> result = new List<ILocation>();
+            var indexs = GameIndex.RectangleGetIndex(WishRange);
+            foreach (var index in indexs)
+            {
+                result.AddRange(index.CrashBoxIndex);
+            }
+            return result;
+        }
+    }
+
+    public class GameIndex
+    {
+        public List<BaseIndex> GridIndex = new List<BaseIndex>();
+        private float GridBlockWidth = 32 * 32;//px
+        private float GridBlockHeight = 32 * 32;//px
+
+        public GameIndex()
+        {
+            BuildEmptyIndex(new Vector2(), 2);
+        }
+
+        public bool UpdateIndex(Entity entity)
+        {
+            if (entity.BelongIndex != null)
+            {
+                for (int i = 0;i < entity.BelongIndex.Count;i++)
+                {
+                    if (i >= entity.BelongIndex.Count)
+                    {
+                        break;
+                    }
+                    var index = entity.BelongIndex[i];
+                    if (index.CheckEntity(entity) == false)
+                    {
+                        index.EntityIndex.Remove(entity);
+                        entity.BelongIndex.Remove(index);
+                    }
+                }
+                SetEntity(entity);
+            }
+            return true;
+        }
+
+        public List<Point> GetRangePoints(Vector2 Position,Vector2 Size)
+        {
+            List<Point> result = new List<Point>();
+
+            int _xstart = (int)MathF.Floor(Position.X / GridBlockWidth);
+            int _ystart = (int)MathF.Floor(Position.Y / GridBlockHeight);
+            int _xend = (int)MathF.Floor((Position.X + Size.X) / GridBlockWidth);
+            int _yend = (int)MathF.Floor((Position.Y + Size.Y) / GridBlockHeight);
+            for (int _yi = _ystart; _yi <= _yend; _yi++)
+            {
+                for (int _xi = _xstart; _xi <= _xend; _xi++)
+                {
+                    result.Add(new Point(_xi, _yi));
+                }
+            }
+            return result;
+        }
+
+        public bool BuildEmptyIndex(Vector2 Position, float Range)//Rect Index
+        {
+            float _xstart = Position.X - Range;
+            float _ystart = Position.Y - Range;
+            float _xend = Position.X + Range;
+            float _yend = Position.Y + Range;
+            Point[] SEpoints = GetStartEndPoint(new Vector2(_xstart, _ystart), new Vector2(_xend, _yend));
+            for (int _y = SEpoints[0].Y; _y <= SEpoints[1].Y; _y++)
+            {
+                for (int _x = SEpoints[0].X; _x <= SEpoints[1].X; _x++)
+                {
+                    SetIndex(_x, _y , out BaseIndex _);
+                }
+            }
+            return true;
+        }
+
+        public Point[] GetStartEndPoint(Vector2 Start, Vector2 End)
+        {
+            Point StartPoint = new Point((int)MathF.Floor(Start.X), (int)MathF.Floor(Start.Y));
+            Point EndPoint = new Point((int)MathF.Floor(End.X), (int)MathF.Floor(End.Y));
+            return new Point[] { StartPoint, EndPoint };
+        }
+
+        public BaseIndex CheckVaild(Point point)
+        {
+            BaseIndex Status = GridIndex.Find(x => x.IndexPosition == point);
+            if (Status == null)
+            {
+                SetIndex(point.X, point.Y , out BaseIndex t);
+                return t;
+            }
+            return Status;
+        }
+
+        public BaseIndex PositionGetIndex(Point Pos)
+        {
+            int _x = (int)MathF.Floor(Pos.X / GridBlockWidth);
+            int _y = (int)MathF.Floor(Pos.Y / GridBlockHeight);
+            var result = GridIndex.Find(x => x.IndexPosition == Pos);
+            if (result != null)
+            {
+                return result;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public List<BaseIndex> RectangleGetIndex(RectF Rect)
+        {
+            int _xstart = (int)MathF.Floor(Rect.Left / GridBlockWidth);
+            int _ystart = (int)MathF.Floor(Rect.Top / GridBlockHeight);
+            int _xend = (int)MathF.Floor(Rect.Right / GridBlockWidth);
+            int _yend = (int)MathF.Floor(Rect.Bottom / GridBlockHeight);
+            List<BaseIndex> result = new List<BaseIndex>();
+            for (int _yi = _ystart; _yi <= _yend; _yi++)
+            {
+                for (int _xi = _xstart; _xi <= _xend; _xi++)
+                {
+                    result.Add(CheckVaild(new Point(_xi, _yi)));
+                }
+            }
+            return result;
+        }
+
+        public List<BaseIndex> GetRangeIndex(Vector2 Position, float Range)
+        {
+            RectF rectF = new RectF(new Vector2(Position.X - Range, Position.Y - Range), new Vector2(Range * 2, Range * 2));
+            return RectangleGetIndex(rectF);
+        }
+
+        public List<BaseIndex> GetRangeIndex(RectF Range)
+        {
+            return RectangleGetIndex(Range);
+        }
+
+        public bool SetCrashBox(IPhysicEntity Crashbox)
+        {
+            foreach (Point Position in GetRangePoints(Crashbox.PhysicProperty.Position , Crashbox.PhysicProperty.Size))
+            { 
+                BaseIndex index = CheckVaild(Position);
+                index.CrashIndex.Add(Crashbox);
+                
+            }
+            return true;
+        }
+
+        public bool SetCrashBox(Location Crashbox)
+        {
+            foreach (Point Position in GetRangePoints(Crashbox.Position, Crashbox.Size))
+            { 
+                BaseIndex index = CheckVaild(Position);
+                index.CrashBoxIndex.Add(Crashbox);
+            }
+            return true;
+        }
+
+        public bool SetEntity(Entity entity)
+        {
+            if (entity.BelongIndex == null)
+            {
+                entity.BelongIndex = new List<BaseIndex>();
+            }
+            foreach (Point Position in GetRangePoints(entity.PhysicProperty.Position, entity.PhysicProperty.Size))
+            {
+                BaseIndex index = CheckVaild(Position);
+                if (index.CheckEntity(entity) == false)
+                {
+                    index.EntityIndex.Add(entity);
+                }
+                if (entity.BelongIndex.Contains(index) == false)
+                {
+                    entity.BelongIndex.Add(index);
+                }
+                if (index.CrashIndex.Contains(entity) == false)
+                {
+                    index.CrashIndex.Add(entity);
+                }
+            }
+            return true;
+        }
+
+        public bool SetIndex(int X, int Y, out BaseIndex index)
+        {
+            index = null;
+            if (GridIndex.Find(x => x.IndexPosition == new Point(X, Y)) == null)
+            {
+                index = new BaseIndex(new Point(X, Y));
+                GridIndex.Add(index);
                 return true;
             }
             else
@@ -88,146 +398,9 @@ namespace DotAge.Core.View
         }
     }
 
-    static class GameIndex
-    {
-        public static Dictionary<Point, BaseIndex> GridIndex = new Dictionary<Point, BaseIndex>();
-        private static float GridBlockWidth = 32 * 32;//px
-        private static float GridBlockHeight = 32 * 32;//px
-
-        static GameIndex()
-        {
-            BuildEmptyIndex(new Vector2(), 2);
-            Thread thread = new Thread(() => { test(); })
-            {
-                Name = "test1"
-            };
-            thread.Start();
-        }
-
-        public static void test()
-        {
-            while (true)
-            {
-                Thread.Sleep(10000);
-            }
-        }
-
-        public static bool BuildEmptyIndex(Vector2 _position, float _range)//Rect Index
-        {
-            float _xstart = _position.X - _range;
-            float _ystart = _position.Y - _range;
-            float _xend = _position.X + _range;
-            float _yend = _position.Y + _range;
-            Point[] SEpoints = GetStartEndPoint(new Vector2(_xstart, _ystart), new Vector2(_xend, _yend));
-            for (int _y = SEpoints[0].Y; _y <= SEpoints[1].Y; _y++)
-            {
-                for (int _x = SEpoints[0].X; _x <= SEpoints[1].X; _x++)
-                {
-                    SetIndex(_x, _y, false);
-                }
-            }
-            return true;
-        }
-
-        public static Point[] GetStartEndPoint(Vector2 Start, Vector2 End)
-        {
-            Point StartPoint = new Point((int)MathF.Floor(Start.X), (int)MathF.Floor(Start.Y));
-            Point EndPoint = new Point((int)MathF.Floor(End.X), (int)MathF.Floor(End.Y));
-            return new Point[] { StartPoint, EndPoint };
-        }
-
-        public static bool CheckVaild(Point point)
-        {
-            return GridIndex.ContainsKey(point);
-        }
-
-        public static BaseIndex PositionGetIndex(Vector2 _pos)
-        {
-            int _x = (int)MathF.Floor(_pos.X / GridBlockWidth);
-            int _y = (int)MathF.Floor(_pos.Y / GridBlockHeight);
-            if (GridIndex.ContainsKey(new Point(_x, _y)))
-            {
-                return GridIndex[new Point(_x, _y)];
-            }
-            else
-            {
-                return new BaseIndex();
-            }
-        }
-
-        public static Dictionary<Point , BaseIndex> RectangleGetIndex(RectF _rect)
-        {
-            int _xstart = (int)MathF.Floor(_rect.Left / GridBlockWidth);
-            int _ystart = (int)MathF.Floor(_rect.Top / GridBlockHeight);
-            int _xend = (int)MathF.Floor(_rect.Right / GridBlockWidth);
-            int _yend = (int)MathF.Floor(_rect.Bottom / GridBlockHeight);
-            Dictionary<Point, BaseIndex> result = new Dictionary<Point, BaseIndex>();
-            //if (result)
-            for (int _yi = _ystart; _yi <= _yend; _yi++)
-            {
-                for (int _xi = _xstart; _xi <= _xend; _xi++)
-                {
-                    if (CheckVaild(new Point(_xi, _yi)) == true)
-                    {
-                        result.Add(new Point(_xi, _yi) , GridIndex[new Point(_xi, _yi)]);
-                    }
-                    else
-                    {
-                        GridIndex[new Point(_xi, _yi)] = new BaseIndex();
-                        result.Add(new Point(_xi, _yi), GridIndex[new Point(_xi, _yi)]);
-                    }
-                }
-            }
-            return result;
-        }
-
-        public static Dictionary<Point, BaseIndex> GetRangeIndex(Vector2 _position, float Range)
-        {
-            RectF rectF = new RectF(new Vector2(_position.X - Range, _position.Y - Range), new Vector2(Range * 2, Range * 2));
-            return RectangleGetIndex(rectF);
-        }
-
-        public static bool SetEntity(Entity _entity)
-        {
-            int _ID = _entity.ID;
-            var _Size = _entity.PhysicProperty.Size;
-            var _Position = _entity.PhysicProperty.Position;
-            int _xstart = (int)MathF.Floor(_Position.X / GridBlockWidth);
-            int _ystart = (int)MathF.Floor(_Position.Y / GridBlockHeight);
-            int _xend = (int)MathF.Floor((_Position.X + _Size.X) / GridBlockWidth);
-            int _yend = (int)MathF.Floor((_Position.Y + _Size.Y) / GridBlockHeight);
-            for (int _yi = _ystart; _yi <= _yend; _yi++)
-            {
-                for (int _xi = _xstart; _xi <= _xend; _xi++)
-                {
-                    var tmpPoint = new Point(_xi, _yi);
-                    if (!GridIndex.ContainsKey(tmpPoint))
-                    {
-                        SetIndex(_xi, _yi, false);
-                    }
-                }
-            }
-            return true;
-        }
-
-        public static int[] SetIndex(int _x, int _y, bool ForceOverwrite)
-        {
-            if (GridIndex.ContainsKey(new Point(_x, _y)) && ForceOverwrite == true)
-            {
-                GridIndex[new Point(_x, _y)] = new BaseIndex();
-            }
-            else if (!GridIndex.ContainsKey(new Point(_x, _y)))
-            {
-                GridIndex.Add(new Point(_x, _y), new BaseIndex());
-            }
-            return new int[0];
-        }
-    }
-
     public static class TextureManager
     {
         public static Dictionary<string, TextureProperty> LoadedTextures = new Dictionary<string, TextureProperty>();
-        public static List<TextureRegion> TextureRegions = new List<TextureRegion>();
 
         static TextureManager()
         {
@@ -242,7 +415,7 @@ namespace DotAge.Core.View
             }
             else
             {
-                if (LoadTexture.Width % UnitWidth != 0 || LoadTexture.Height % UnitHeight != 0)
+                if ((((LoadTexture.Width - 1) % (UnitWidth + 1)) != 0) || ((LoadTexture.Height - 1) % (UnitHeight + 1) != 0))
                 {
                     return false;
                 }
@@ -256,15 +429,15 @@ namespace DotAge.Core.View
 
         public static TextureRegion GetTextureRegionByName(string TextureName)
         {
-            if (TextureRegions.Find(x => x.Name == TextureName) != null)
+            foreach (var textureProperty in LoadedTextures.Values)
             {
-                return TextureRegions.Find(x => x.Name == TextureName);
+                var tmpRegion = textureProperty.GetTextureRegion(TextureName);
+                if (tmpRegion != null)
+                {
+                    return tmpRegion;
+                }
             }
-            else
-            {
-                return null;
-            }
+            return null;
         }
-
     }
 }

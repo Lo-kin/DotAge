@@ -20,8 +20,8 @@ namespace DotAge.Core.View
         public string Description = "";
         public int UnitWidth = 0;
         public int UnitHeight = 0;
-        public int WidthCount { get { return Texture.Width / UnitWidth; } }
-        public int HeightCount { get { return Texture.Height / UnitHeight; } }
+        public int WidthCount { get { return (Texture.Width - 1) / (UnitWidth + 1); } }
+        public int HeightCount { get { return (Texture.Height - 1) / (UnitHeight + 1); } }
         public Dictionary<Point , TextureRegion> TextureRegions = new Dictionary<Point, TextureRegion>();
 
         public TextureProperty(int _unitWidth , int _unitHeight , Texture2D loadTexture)
@@ -62,11 +62,20 @@ namespace DotAge.Core.View
             for (int i = 0; i < _names.Length;i++ )
             {
                 Point _tileTexturePoint = MathTool.HorizonLayout(i + offset + start, WidthCount);
-                TextureRegions[_tileTexturePoint] = new TextureRegion() 
+                LoadName(_names[i] , _tileTexturePoint);
+            }
+            return true;
+        }
+
+        public bool LoadName(string _name , Point _position)
+        {
+            if (_position.X >= 0 && _position.Y >= 0 && _position.X < WidthCount && _position.Y < HeightCount)
+            {
+                TextureRegions[_position] = new TextureRegion()
                 {
                     Texture = Texture,
-                    TextureRect = new Rectangle(_tileTexturePoint.X * UnitWidth, _tileTexturePoint.Y * UnitHeight, UnitWidth, UnitHeight),
-                    Name = _names[i]
+                    TextureRect = new Rectangle(1 + (_position.X * (UnitWidth + 1)), 1 + (_position.Y * (UnitHeight + 1)), UnitWidth, UnitHeight),
+                    Name = _name
                 };
             }
             return true;

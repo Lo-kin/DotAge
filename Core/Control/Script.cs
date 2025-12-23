@@ -9,7 +9,7 @@ using System.Security.AccessControl;
 
 namespace DotAge.Core.Control
 {
-    internal class Script
+    public class Script
     {
         public EngineAccessor Accessor = null;
         public List<TickDelegate> TickScripts = new List<TickDelegate>();
@@ -20,26 +20,39 @@ namespace DotAge.Core.Control
             Accessor = _accessor;
             var item1 = new TickDelegate(Accessor)
             {
-                TriggerTick = CurrentTick + 1000,
+                TriggerTick = 0,
                 TotalRepeatCount = -1,
-                RepeatInterval = 100,
+                RepeatInterval = 1,
                 TickDelegateFunc = (engineAccessor) =>
                 {
                     engineAccessor.AddEntity(new Zombie(Accessor)
                     {
                         PhysicProperty =
                         {
-                            SpeedLength= 0.2f,
+                            SpeedLength= 0.20f + (0.05f - (1 / ((CurrentTick / 500) + 20))),
                             Position = new Vector2(200, 200),
                             Size = new Vector2(32, 32),
+                        },
+                        GameProperty =
+                        {
+                            Health = (CurrentTick / 400) + 500,
                         }
+                        
                     });
                     return true;
                 }
             };
             item1.TriggerCondition = () =>
             {
-                if (Accessor.GetGameTime() % 2000 >= 1000 && Accessor.GetGameTime() == item1.NextTriggerTick)
+                if (Accessor.GetGameTime() % 2000 >= 1000)
+                {
+                    item1.RepeatInterval = 100;
+                }
+                else
+                {
+                    item1.RepeatInterval = 200;
+                }
+                if (Accessor.GetGameTime() == item1.NextTriggerTick)
                 {
                     return true;
                 }
@@ -59,7 +72,7 @@ namespace DotAge.Core.Control
                     {
                         PhysicProperty =
                         {
-                            Position = new Vector2(Random.Shared.NextInt64(0 , 500), Random.Shared.NextInt64(0,500)),
+                            Position = new Vector2(Random.Shared.NextInt64(0 , 0), Accessor.GetGameTime() * 32 / 250),
                             Size = new Vector2(32, 32),
                         }
                     });
@@ -78,12 +91,16 @@ namespace DotAge.Core.Control
                 }
             };
 
-            AddTickDelegate(item1);
+            //AddTickDelegate(item1);
             AddTickDelegate(item2);
         }
 
         public virtual void Update()
         {
+            if (Accessor == null)
+            {
+                return;
+            }
             foreach (var script in TickScripts)
             {
                 script.Invoke();
@@ -96,17 +113,11 @@ namespace DotAge.Core.Control
         }
     }
 
-    class TickDelegate
+    public class TickDelegate
     {
         public EngineAccessor Accessor = null;
         public int TriggerTick = 0;
-        public int NextTriggerTick
-        {
-            get 
-            {
-                return TriggerTick + (RepeatInterval * RepeatedCount);
-            }
-        }
+        public int NextTriggerTick = 0;
         public int TotalRepeatCount = 1;
         public int RepeatedCount = 0;
         public int RepeatInterval = 0;
@@ -146,9 +157,11 @@ namespace DotAge.Core.Control
                     InvokeCount++;
                     stat = TickDelegateFunc.Invoke(Accessor);
                 }
+                
                 if (IsRepeating == true && NextTriggerTick == Accessor.GetGameTime())
                 {
                     RepeatedCount++;
+                    NextTriggerTick += RepeatInterval;
                 }
                 else
                 {

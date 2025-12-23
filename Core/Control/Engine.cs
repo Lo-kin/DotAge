@@ -1,19 +1,24 @@
-﻿using System;
+﻿using DotAge.Core.Model;
+using DotAge.Core.Model.Delegates;
+using DotAge.Core.Model.Dialogue;
+using DotAge.Core.Tools;
+using DotAge.Core.View;
+using Microsoft.VisualBasic;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using DotAge.Core.Model;
-using DotAge.Core.Model.Dialogue;
-using DotAge.Core.View;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
 
 namespace DotAge.Core.Control
 {
@@ -28,10 +33,19 @@ namespace DotAge.Core.Control
         public bool GraphicEventAble = false;
         public bool OverModifyRenderProperty = false;
 
-        public const int GameTick = 20;
+        public const int GameTick = 20;//per 1000 / 20 = 50 Frames/s
         public int GameTime = 0;
+        public double LastLoopTime = 0;
+
+        public List<Script> Scripts = new List<Script>();
+        public List<Sprite> FrameSprites = new List<Sprite>();
 
         public Engine()
+        {
+            
+        }
+
+        public bool Initialize()
         {
             CurrentEngineAccessor.Initialize(this);
             CurrentGrapic = new Graphic();
@@ -42,58 +56,63 @@ namespace DotAge.Core.Control
                 Name = "GrapicThread"
             };
             GrapicThread.Start();
-            
+
             while (!CurrentGrapic.IsLoaded)
             {
                 Thread.Sleep(100);
             }
             GraphicEventAble = true;
 
-            Texture2D defaultTexture = CurrentGrapic.Content.Load<Texture2D>("default_texture");
             Texture2D MainTexture = CurrentGrapic.Content.Load<Texture2D>("Character");
-            Texture2D SubTexture = CurrentGrapic.Content.Load<Texture2D>("Status");
-            TextureManager.LoadTexture(defaultTexture, 32, 32);
             TextureManager.LoadTexture(MainTexture, 32, 32);
-            TextureManager.LoadTexture(SubTexture, 32, 32);
             string[] chanames = {
-                "MissingTexture" , "Block_White" , "Empty" ,"Mine_Stone" ,"Mine_Gold" ,"Mine_Coal" ,"Tree" ,"Turret_Gun" ,
-                "Human_Engineer" , "Bullet_Yellow" ,"Shadow_White" ,"White_EightSIde" ,"Crash_Frame" , "Wihte_Ball" , "Castle_Bright" ,
-                "Castle_Dark" , "Boundary_Blue"
+                "MissingTexture" , "Block_White" ,"Turret_Gun" ,"Human_Engineer" , "Bullet_Yellow"
             };
-            string[] stanames =
-            {
-                "bar_lt" , "bar_t" , "bar_rt" ,"bar_lb" , "bar_l" , "bar_rb" ,"bar_l" , "bar_r" , "bar_background" , "bar_per" , "shelf" , "Coin"
-            };
-            TextureManager.LoadedTextures["default_texture"].LoadNames(new string[] { "default" });
             TextureManager.LoadedTextures["Character"].LoadNames(chanames);
-            TextureManager.LoadedTextures["Status"].LoadNames(stanames);
-            foreach (var item in TextureManager.LoadedTextures)
-            {
-                TextureManager.TextureRegions.AddRange(item.Value.TextureRegions.Values);
-            }
+            TextureManager.LoadedTextures["Character"].LoadName("TV_Normal", new Point(0, 7));
+            TextureManager.LoadedTextures["Character"].LoadName("TV_Happy", new Point(0, 8));
+            TextureManager.LoadedTextures["Character"].LoadName("TV_Bad", new Point(0, 9));
+            TextureManager.LoadedTextures["Character"].LoadName("TV_Leg", new Point(1, 7));
+            TextureManager.LoadedTextures["Character"].LoadName("Steel_Ground", new Point(2, 7));
+            TextureManager.LoadedTextures["Character"].LoadName("Steel_Material", new Point(3, 7));
+            TextureManager.LoadedTextures["Character"].LoadName("Gate", new Point(2, 8));
+            TextureManager.LoadedTextures["Character"].LoadName("Blocker", new Point(2, 9));
 
-            List<Terrain> terrainList = new();
-            for (int i = -1; i <= 40; i++)
+            TerrainChunk tc = new TerrainChunk();
+            for (int y = 0; y < 50; y++)
             {
-                for (int j = -1; j <= 40; j++)
+                for (int x = 0; x < 50; x++)
                 {
-                    Terrain tmp;
-                    if (i == -1 || j == -1 || i == 40 || j == 40)
+                    if (x ==3)
                     {
-                        Boundary boundary = new();
-                        boundary.LocalPhysicEntity.Position = new Vector2(i * 32, j * 32);
-                        tmp = boundary;
+                        Water ground = new Water()
+                        {
+                            PhysicProperty = new LocationEntity()
+                            {
+                                Position = new Vector2(x * 32, y * 32),
+                                Size = new Vector2(32, 32),
+                            },
+                        };
+                        ground.UpdateRender();
+                        tc.Terrains.Add(ground);
                     }
                     else
                     {
-                        Grass grass = new();
-                        grass.LocalPhysicEntity.Position = new Vector2(i * 32, j * 32);
-                        tmp = grass;
+                        Ground ground = new Ground()
+                        {
+                            PhysicProperty = new LocationEntity()
+                            {
+                                Position = new Vector2(x * 32, y * 32),
+                                Size = new Vector2(0, 0),
+                            },
+                        };
+                        ground.UpdateRender();
+                        tc.Terrains.Add(ground);
                     }
-                    tmp.UpdatePosition();
-                    terrainList.Add(tmp);
+
                 }
             }
+            AddTerrainChunk(tc);
 
             Soildre item1 = (Soildre)CreateEntity(new Soildre(CurrentEngineAccessor)
             {
@@ -111,34 +130,28 @@ namespace DotAge.Core.Control
             });
 
 
-            Zombie item2 = (Zombie)CreateEntity(new Zombie(CurrentEngineAccessor)
-            {
-                PhysicProperty = new PhysicEntity()
-                {
-                    SpeedLength= 0.1f,
-                    Position = new Vector2(0, 0),
-                    Size = new Vector2(32, 32),
-                },
-                GameProperty = new GameEntity()
-                {
-                    Health = 500f,
-                }
-            });
 
-            Turret item3 = (Turret)CreateEntity(new Turret(CurrentEngineAccessor)
-            {
-                Parent = item1,
-                PhysicProperty = new PhysicEntity()
-                {
-                    Position = new Vector2(800, 320),
-                    Size = new Vector2(32, 32),
-                },
-            });
             EntityControler entityControler = new(item1);
             entityControler.EngineAccess = CurrentEngineAccessor;
             GameData.AddControler(entityControler);
 
-            ZoneEntity _moveLeft = new ZoneEntity(Controlers.MouseEntity , TwoStatus.Any)
+            Door door = (Door)CreateEntity(new Door(CurrentEngineAccessor)
+            {
+            });
+            door.PhysicProperty.Position = new Vector2(200, 30);
+            door.RenderProperty.Sprite.Position = door.PhysicProperty.Position;
+            entityControler.RegisterKey(new ControlerFunc()
+            {
+                BindKey = Keys.E,
+                TriggerStat = TwoStatus.ActiveToFreeze,
+                ControlerFuncDelegate = (ClickStat, ClickPos) => {
+                    door.Use();
+                    return ItemInformation.NullItem;
+                },
+                ControlerFuncescription = "opendoor"
+            });
+
+            ZoneEntity _moveLeft = new ZoneEntity(Controlers.MouseEntity, TwoStatus.Any)
             {
                 Description = "Screen Move To Left",
                 TriggerZone = new Margin(0, 0, GameSetting.ScreenWidth - 100, 0).ToRectF(),
@@ -171,32 +184,29 @@ namespace DotAge.Core.Control
             GameData.ZoneEntities.Add(_moveRight);
             GameData.ZoneEntities.Add(_moveTop);
             GameData.ZoneEntities.Add(_moveBottom);
+
+            Scripts.Add(new Script(CurrentEngineAccessor));
+
+            GameData.MainPlayer.ControlEntity = item1;
+
+            return true;
         }
-        
+
+
         public bool MainLoop(string[] args)
         {
-            Script script = new Script(CurrentEngineAccessor);
             while (true)
             {
                 DateTime StartExcute = DateTime.Now;
-                if (CurrentEngineAccessor != null)
+
+                foreach (var script in Scripts)
                 {
                     script.Update();
                 }
-                
+
                 //START EXCUTE
                 if (GraphicEventAble)
                 {
-                    foreach (var item in RemoveEntityList)
-                    {
-                        RemoveEntity(item);
-                    }
-                    RemoveEntityList.Clear();
-                    foreach (var item in CreateEntityList)
-                    {
-                        CreateEntity(item);
-                    }
-                    CreateEntityList.Clear();
                     Controlers.Update();
                     foreach (var item in GameData.EntityControlers)
                     {
@@ -220,30 +230,67 @@ namespace DotAge.Core.Control
                     {
                         item.Trigger();
                     }
-                    foreach (var item in GameData.GameEntities)
+
+                    GameData.MainPlayer.ControlEntity.PhysicProperty.UpdateWish();
+                    GameData.GameIndex.UpdateIndex(GameData.MainPlayer.ControlEntity);
+                    List<Entity> LoadRangeEntity = GameData.MainPlayer.ControlEntity.GetRangeEntity();
+
+                    foreach (Entity item in LoadRangeEntity)
                     {
-                        item.Update();
-                        foreach (var item2 in GameData.GameEntities)
+                        item.PhysicProperty.UpdateWish();
+                        GameData.GameIndex.UpdateIndex(item);
+                    }
+                    for (int i = 0; i < LoadRangeEntity.Count; i++)
+                    {
+                        if (i >= LoadRangeEntity.Count || LoadRangeEntity.Count <= 0)
                         {
-                            if (item != item2)
+                            break;
+                        }
+                        Entity UpdateEntity = LoadRangeEntity[i];
+                        if (UpdateEntity.PhysicProperty.Size == Vector2.Zero)
+                        {
+                            continue;
+                        }
+                        List<IPhysicEntity> RangeCrash = UpdateEntity.GetRangeCrashBox();
+                        for (int j = i + 1; j < RangeCrash.Count; j++)
+                        {
+                            if (j >= RangeCrash.Count || RangeCrash.Count <= 0)
                             {
-                                if (RectF.IsContain(item.PhysicProperty.CrashBox,item2.PhysicProperty.CrashBox))
-                                {
-                                    item.Crash(item2);
-                                }
+                                break;
+                            }
+                            IPhysicEntity BeingUpdateEntity = RangeCrash[j];
+                            if (BeingUpdateEntity.PhysicProperty.Size == Vector2.Zero || BeingUpdateEntity == UpdateEntity)
+                            {
+                                continue;
+                            }
+
+                            if (RectF.IsContain(UpdateEntity.PhysicProperty.WishRange , BeingUpdateEntity.PhysicProperty.WishRange))
+                            {
+                                var crosszone = RectF.CrossZone(UpdateEntity.PhysicProperty.WishRange , BeingUpdateEntity.PhysicProperty.CrashBox);
+                                var crossvec = crosszone.Size / 2;
+                                var side = RectF.RectDirect(UpdateEntity.PhysicProperty.CrashBox , BeingUpdateEntity.PhysicProperty.CrashBox);
+                                var realvec = crossvec * side;
+                                UpdateEntity.PhysicProperty.WishForward = MathTool.Project(UpdateEntity.PhysicProperty.WishForward , -realvec);  
+                                BeingUpdateEntity.PhysicProperty.WishForward = MathTool.Project(BeingUpdateEntity.PhysicProperty.WishForward , realvec);
+                                UpdateEntity.OnCrash(BeingUpdateEntity);
+                                BeingUpdateEntity.OnCrash(UpdateEntity);
                             }
                         }
-                        if (item.GameProperty.IsAlive == false)
-                        {
-                            RemoveEntityList.Add(item);
-                        }
+                        UpdateEntity.PhysicProperty.UpdatePosition(); 
                     }
+                    
+                    foreach (var item in LoadRangeEntity)
+                    {
+                        item.Update();
+                    }   
                     GameTime++;
                 }
                 
                 //END EXCUTE
                 DateTime EndExcute = DateTime.Now;
                 TimeSpan ts = EndExcute - StartExcute;
+                LastLoopTime = ts.TotalMilliseconds;
+                CurrentGrapic.CoreTime = LastLoopTime;
                 float SleepTime = 10f;
                 if (ts.TotalMilliseconds <= GameTick)
                 {
@@ -259,36 +306,89 @@ namespace DotAge.Core.Control
             return true;
         }
 
-        public List<Entity> CreateEntityList = new();
-        public List<Entity> RemoveEntityList = new();
+        public bool AddRenderProperty(IRenderEntity renderEntity)
+        {
+            if (renderEntity == null)
+            {
+                return false;
+            }
+            GameData.AddRenderEntity(renderEntity);
+            CurrentGrapic.RenderObjects.Add(renderEntity.RenderProperty.Sprite);
+            return true;
+        }
+
+        public bool RemoveRenderProperty(IRenderEntity renderEntity)
+        {
+            if (renderEntity == null)
+            {
+                return false;
+            }
+            GameData.RemoveRenderEntity(renderEntity);
+            CurrentGrapic.RenderObjects.Remove(renderEntity.RenderProperty.Sprite);
+            return true;
+        }
+
+        //public bool 
 
         public Entity CreateEntity(Entity entity)
         {
+            if (entity.Parent != null)
+            {
+                entity.BindParent(entity.Parent);
+            }
             entity.EngineAccess = CurrentEngineAccessor;
+            entity.Update();
             GameData.AddEntity(entity);
-            CurrentGrapic.RenderObjects.Add(entity.RenderProperty.Sprite);
+            AddRenderProperty(entity);
             return entity;
         }
 
         public bool RemoveEntity(Entity entity)
         {
-            if (!GameData.GameEntities.Contains(entity))
-            {
-                return false;
-            }
             entity.EngineAccess = null;
-            CurrentGrapic.RenderObjects.Remove(entity.RenderProperty.Sprite);
+            RemoveRenderProperty(entity);
             return GameData.RemoveEntity(entity);
         }
 
-        public bool CreateMessage(MessageEntity messageEntity)
+        public bool AddTerrainChunk(TerrainChunk terrainChunk)
+        {
+            if (terrainChunk == null)
+            {
+                return false;
+            }
+            GameData.AddTerrainChunk(terrainChunk);
+            foreach (var terrain in terrainChunk.Terrains)
+            {
+                AddRenderProperty(terrain);
+            }
+            return true;
+        }
+
+        public bool RemoveTerrainChunk(TerrainChunk terrainChunk)
+        {
+            if (terrainChunk == null)
+            {
+                return false;
+            }
+            foreach (var terrain in terrainChunk.Terrains)
+            {
+                RemoveRenderProperty(terrain);
+            }
+            return GameData.RemoveTerrainChunk(terrainChunk);
+        }
+
+        public TextSprite CreateMessage(MessageEntity messageEntity)
         {
             TextSprite sprite = new TextSprite();
             sprite.TintColor = Color.White;
             sprite.TextSource = messageEntity;
             CurrentGrapic.RenderObjects.Add(sprite);
+            return sprite;
+        }
 
-            return true;
+        public List<BaseIndex> GetRangeIndex(RectF Range)
+        {
+            return GameData.GameIndex.GetRangeIndex(Range);
         }
     }
 
@@ -297,10 +397,10 @@ namespace DotAge.Core.Control
         public Func<Entity> CreateEntity;
         public Func<Entity , bool> AddEntity;
         public Func<Entity , bool> RemoveEntity;
-        public Func<List<Entity>> GetAllEntities;
         public Func<string, TextureRegion> GetTextureRegion;
-        public Func<int> GetGameTime;
-        public Func<MessageEntity , bool> AddMessageEntity;
+        public Func<int> GetGameTime;  
+        public Func<MessageEntity , TextSprite> AddMessageEntity;
+        public Func<RectF, List<BaseIndex>> GetRangeIndex;
 
         public bool Initialize(Engine engine)
         {
@@ -311,17 +411,13 @@ namespace DotAge.Core.Control
             };
             AddEntity = (entity) =>
             {
-                engine.CreateEntityList.Add(entity);
+                engine.CreateEntity(entity);
                 return true;
             };
             RemoveEntity = (entity) =>
             {
-                engine.RemoveEntityList.Add(entity);
+                engine.RemoveEntity(entity);
                 return true;
-            };
-            GetAllEntities = () =>
-            {
-                return engine.GameData.GameEntities;
             };
             GetTextureRegion = (name) =>
             {
@@ -334,6 +430,10 @@ namespace DotAge.Core.Control
             AddMessageEntity = (message) =>
             {
                 return engine.CreateMessage(message);
+            };
+            GetRangeIndex = (range) =>
+            {
+                return engine.GetRangeIndex(range);
             };
             return true;
         }

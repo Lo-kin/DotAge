@@ -87,7 +87,7 @@ namespace DotAge.Core.Control
                                 Parent = ExcuteEntity,
                                 PhysicProperty = new PhysicEntity()
                                 {
-                                    Position = ExcuteEntity.PhysicProperty.Position + (ExcuteEntity.PhysicProperty.Pioneer.Direct * 16),
+                                    Position = ExcuteEntity.PhysicProperty.Position + ((ExcuteEntity.PhysicProperty as PhysicEntity).Pioneer.Direct * 16),
                                     Size = new Vector2(32, 32),
                                 }
                             });
@@ -101,6 +101,48 @@ namespace DotAge.Core.Control
                     return ReturnMessage;
                 },
                 ControlerFuncescription = "Build At Position"
+            };
+            ControlerFunc _PskillUp = new()
+            {
+                BindKey = Keys.X,
+                TriggerStat = TwoStatus.ActiveToFreeze,
+                ControlerFuncDelegate = (ClickStat, ClickPos) =>
+                {
+                    if (ExcuteEntity.GameProperty.SkillPoint != 0)
+                    {
+                        ExcuteEntity.GameProperty.PierceCount++;
+                        foreach (var item in ExcuteEntity.Children)
+                        {
+                            if (item is Turret)
+                            {
+                                (item as Turret).BulletPCount = ExcuteEntity.GameProperty.PierceCount;
+                            }
+                        }
+                        ExcuteEntity.GameProperty.SkillPoint--;
+                    }
+                    return null;
+                }
+            };
+            ControlerFunc _DskillUp = new()
+            {
+                BindKey = Keys.C,
+                TriggerStat = TwoStatus.ActiveToFreeze,
+                ControlerFuncDelegate = (ClickStat, ClickPos) =>
+                {
+                    if (ExcuteEntity.GameProperty.SkillPoint != 0)
+                    {
+                        ExcuteEntity.GameProperty.Damage+=9;
+                        foreach (var item in ExcuteEntity.Children)
+                        {
+                            if (item is Turret)
+                            {
+                                (item as Turret).BullectDamage = ExcuteEntity.GameProperty.Damage;
+                            }
+                        }
+                        ExcuteEntity.GameProperty.SkillPoint--;
+                    }
+                    return null;
+                }
             };
             ControlerFunc _leftmouse = new()
             {
@@ -129,6 +171,8 @@ namespace DotAge.Core.Control
             RegisterMouse(_rightmouse);
             RegisterKey(_esc);
             RegisterKey(_build);
+            RegisterKey(_PskillUp);
+            RegisterKey(_DskillUp);
         }
 
         public bool RegisterKey(dynamic _controlerFunc)
@@ -161,7 +205,7 @@ namespace DotAge.Core.Control
                     MouseDelegate[_mouseKey.Item1].Invoke(_mouseKey.Item2, Controlers.CurrentMousePosition.ToVector2());
                 }
             }
-            ExcuteEntity.PhysicProperty.Pioneer.UpdateDirect(MoveOprate);
+            (ExcuteEntity.PhysicProperty as PhysicEntity).Pioneer.UpdateDirect(MoveOprate);
             MoveOprate = new Vector2(0, 0);
             FrameKeys.Clear();
             FrameMouse.Clear();
@@ -195,8 +239,8 @@ namespace DotAge.Core.Control
         {
             if (CheckVaild() == true)
             {
-                ExcuteEntity.PhysicProperty.PathNodes.IsFollowForceRay = true;
-                ExcuteEntity.PhysicProperty.PathNodes.ForceRay = _targetVec;
+                (ExcuteEntity.PhysicProperty as PhysicEntity).PathNodes.IsFollowForceRay = true;
+                (ExcuteEntity.PhysicProperty as PhysicEntity).PathNodes.ForceRay = _targetVec;
                 return true;
             }
             return false;

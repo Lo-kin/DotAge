@@ -8,6 +8,7 @@ using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.ComponentModel.Design;
 using System.IO;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
@@ -17,33 +18,66 @@ using System.Threading.Tasks;
 
 namespace DotAge.Core.Model
 {
+    public interface ILocation
+    {
+        public Vector2 Position { get; set; }
+        public Vector2 Size { get; set; }
+        public RectF CrashBox { get { return new RectF(Position, Size); } }
+
+        public bool UpdatePosition(Vector2 NewPosition)
+        {
+            if (NewPosition == Position || NewPosition.X == float.NaN || NewPosition.Y == float.NaN)
+            {
+                return false;
+            }
+            else
+            {
+                Position = NewPosition;
+                return true;
+            }
+        }
+
+        public bool UpdateSize(Vector2 NewSize)
+        {
+            if (NewSize == Size || NewSize.X == float.NaN || NewSize.Y == float.NaN)
+            {
+                return false;
+            }
+            else
+            {
+                Size = NewSize;
+                return true;
+            }
+        }
+    }
+
     interface IClick
     {
         ZoneEntity ClickZone { get; set; }
         ItemInformation? OnClick();
     }
 
-    interface IEntityProperty
+    public class Location : ILocation
     {
-        public Entity SourceEntity { get; set; }
-
-    }
-
-    public class EntityProperty : IEntityProperty
-    {
-        public Entity SourceEntity { get; set; }
-
-        public EntityProperty()
+        public Vector2 Position { get; set; } = Vector2.Zero;
+        public Vector2 Size { get; set; } = new Vector2(32, 32);
+        public RectF CrashBox
         {
-
+            get
+            {
+                return new RectF(Position, Size);
+            }
+        }
+        public Location()
+        {
         }
     }
 
-    public class GameEntity : EntityProperty
+    public class GameEntity 
     {
         public float LastHealth = 100f;
         public float Health = 100f;
-        public float MaxHealth = 100f;
+        public float MaxHealth = 500f;
         public Ray ShootingPostion { get; set; }
         public string Name { get; set; }
         public bool Visibility { get; set; } = true;
@@ -54,7 +88,11 @@ namespace DotAge.Core.Model
         public bool IsAlive { get { return Health > 0; } }
 
         public Dictionary<Type, int> ProductCount = new Dictionary<Type, int>();
-
+        public int SkillPoint = 0;
+        public int PierceCount = 1;
+        public int Damage = 9;
+        public int Sight = 100;
+        public List<IRenderEntity> SeekedEntitites = new List<IRenderEntity>();
         public string GetProductCount
         {
             get
@@ -75,7 +113,6 @@ namespace DotAge.Core.Model
             if (Health < 0)
             {
                 BeingKilledEntity = Source;
-                Source.Kill(SourceEntity);
             }
             //HealthSetEvent?.Invoke(Health , MaxHealth);
             return Health;
@@ -144,12 +181,13 @@ namespace DotAge.Core.Model
         }
     }
 
-    public class RenderEntity : EntityProperty
+    public class RenderEntity
     {
         public TextureSprite Sprite = new TextureSprite();
         public RenderEntity()
         {
-
+            Sprite.Position = Vector2.Zero;
+            Sprite.Size = new Vector2(32, 32);
         }
 
         public bool UpdatePosition(Vector2 Position)
@@ -177,17 +215,60 @@ namespace DotAge.Core.Model
         }
     }
 
-    public class PhysicEntity : EntityProperty
+    public class AnimationProperty : RenderEntity
     {
-        public Path PathNodes = new Path();
-        public Pioneer Pioneer = new Pioneer();
-        public Vector2 Force = new Vector2();//m^2/ms
-        public float SpeedLength = 100f;
-        public Vector2 SpeedForward = new Vector2(0, 0); //m/ms
-        public Vector2 SpeedVec { get { return SpeedLength * SpeedForward; } }
+        public Animation Animation = new Animation();
 
-        public Vector2 Position = new Vector2(0, 0);
-        public Vector2 Size = new Vector2(32, 32);
+        public bool Update(int Tick)
+        {
+            return Animation.Update(Tick);
+        }
+
+        public AnimationProperty() 
+        {
+
+        }
+    }
+
+    public class PhysicEntity : PhysicBase
+    {
+        public Path PathNodes { get; set; } = new Path();
+        public Pioneer Pioneer { get; set; } = new Pioneer();
+        public Vector2 Force = new Vector2();//m^2/ms
+
+        public PhysicEntity()
+        {
+
+        }
+
+        public override bool UpdateWish(Vector2 Fiction = new Vector2(), int Tick = 10)
+        {
+            WishForward += Pioneer.Update(Tick , SpeedLength);
+            return base.UpdateWish();
+        }
+
+        public override bool UpdatePosition()
+        {
+            return base.UpdatePosition();
+        }
+
+        public static Vector2 Crash()
+        {
+            return new Vector2();
+        }
+    }
+
+    public class LocationEntity : PhysicBase
+    {
+        public LocationEntity()
+        {
+        }
+    }
+
+    public abstract class PhysicBase : ILocation
+    {
+        public Vector2 Position { get ; set; } = Vector2.Zero;
+        public Vector2 Size { get ; set; } = new Vector2(32,32);
         public RectF CrashBox
         {
             get
@@ -195,7 +276,9 @@ namespace DotAge.Core.Model
                 return new RectF(Position, Size);
             }
         }
-        public Vector2 WishForward = new Vector2();
+        public Vector2 WishForward { get ; set; } = Vector2.Zero;
+        public float SpeedLength { get; set ; } = 1f;
+        public Vector2 SpeedForward { get; set; } = Vector2.Zero;
         public RectF WishRange
         {
             get
@@ -203,122 +286,44 @@ namespace DotAge.Core.Model
                 return RectF.ExpandRectangel(CrashBox, WishForward);
             }
         }
+        public Action<IPhysicEntity> OnCrashEvent;
 
-        public PhysicEntity()
+        public virtual bool MoveForward(Vector2 _vec)
         {
-
-        }
-
-        public bool MoveForward(Vector2 _vec)
-        {
-            Position += _vec;
+            WishForward += _vec;
             return true;
         }
 
-        public bool UpdateWish(Vector2 Fiction = new Vector2(), int Tick = 10)
+        public virtual bool UpdatePosition()
         {
-            /*
-            if (PathNodes.GetNodes.Count == 1)
-            {
-                Console.WriteLine("PathNodes is Empty , Please Add Nodes First");
-            }
-            SpeedForward = PathNodes.Update(Position);
-            */
-            WishForward += Pioneer.Update(Tick , SpeedLength);
-            return true;
-        }
-
-        public bool Update(Vector2 Fiction = new Vector2(), float Tick = 10)
-        {
-            UpdateWish();
             Position += WishForward;
-            WishForward = new Vector2(0, 0);
-
+            WishForward = Vector2.Zero;
             return true;
         }
 
-        public static Vector2 Crash()
+        public virtual bool SetPosition(Vector2 _pos)
         {
-            return new Vector2();
-        }
-
-        public static (Vector2, (CrashInfo, CrashInfo))? Crash(PhysicEntity physicEntity1, PhysicEntity physicEntity2)
-        {
-            if (RectF.IsContain(physicEntity1.WishRange, physicEntity2.WishRange))
-            {
-                /*
-                if (RectF.IsContain(physicEntity1.CrashBox , physicEntity2.CrashBox) == true)
-                {
-                    return (RectF.ContainCount(physicEntity1.CrashBox, physicEntity2.CrashBox) , (new CrashInfo() , new CrashInfo()));
-                }*/
-                RectF BeforeMove1 = physicEntity1.CrashBox;
-                RectF BeforeMove2 = physicEntity2.CrashBox;
-                RectF AfterMove1 = physicEntity1.CrashBox.TestMove(physicEntity1.WishForward);
-                RectF AfterMove2 = physicEntity2.CrashBox.TestMove(physicEntity2.WishForward);
-
-                if (RectF.IsContain(AfterMove1, AfterMove2) == false)
-                {
-                    return null;
-                }
-                else
-                {
-                    CrashInfo crashInfo1 = new CrashInfo();
-                    CrashInfo crashInfo2 = new CrashInfo();
-                    Vector2 CrossCount = RectF.ContainCount(AfterMove1, AfterMove2);
-                    (CrashInfo, CrashInfo) twodirect = RectF.Direction(AfterMove1, AfterMove2);
-
-                    var MinX = MathF.Min(MathF.Abs(BeforeMove1.Right - BeforeMove2.Left), MathF.Abs(BeforeMove1.Right - BeforeMove2.Left));
-
-                    var SpeedX = MathF.Abs(physicEntity1.SpeedVec.X - physicEntity2.SpeedVec.X);
-                    var TimeX = MinX / SpeedX;
-
-                    var MinY = MathF.Min(MathF.Abs(BeforeMove1.Top - BeforeMove2.Bottom), MathF.Abs(BeforeMove1.Bottom - BeforeMove2.Top));
-
-                    var SpeedY = MathF.Abs(physicEntity1.SpeedVec.Y - physicEntity2.SpeedVec.Y);
-                    var TimeY = MinY / SpeedY;
-
-                    if (TimeY > TimeX)
-                    {
-                        crashInfo1.YCrashDirecton = 0;
-                        crashInfo2.YCrashDirecton = 0;
-                    }
-                    else if (TimeY < TimeX)
-                    {
-                        crashInfo1.XCrashDirecton = 0;
-                        crashInfo2.XCrashDirecton = 0;
-                    }
-                    return (CrossCount, (crashInfo1, crashInfo2));
-                }
-            }
-            return null;
-        }
-    }
-
-    class LocationPhysicEntity
-    {
-        public Vector2 Position = new Vector2(0, 0);
-        public Vector2 Size = new Vector2(32, 32);
-        public RectF CrashBox
-        {
-            get
-            {
-                return new RectF(Position, Size);
-            }
-        }
-        public LocationPhysicEntity()
-        {
-
-        }
-
-        public LocationPhysicEntity(Vector2 _position, Vector2 _size)
-        {
-            Position = _position;
-            Size = _size;
-        }
-        public bool UpdatePosition(Vector2 _position)
-        {
-            Position = _position;
+            Position = _pos;
             return true;
+        }
+
+        public virtual bool UpdateWish(Vector2 Fiction = default, int Tick = 10)
+        {
+            WishForward += SpeedForward * SpeedLength * Tick;
+            return true;
+        }
+
+        public virtual bool Crash(IPhysicEntity physicBase)
+        {
+            if (RectF.IsContain(this.CrashBox, physicBase.PhysicProperty.CrashBox))
+            {
+                OnCrashEvent(physicBase);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
     }
 
@@ -329,7 +334,7 @@ namespace DotAge.Core.Model
 
     public class ZoneEntity
     {
-        public IPhysicEntity CurrentPhysicEntity;
+        public ILocation TrigLoacation;
         public bool IsFixedToMap = false;
         public RectF TriggerZone = new RectF(0, 0, 0, 0);
         public event Func<RectF, bool> TriggerDelegate = null;
@@ -338,9 +343,9 @@ namespace DotAge.Core.Model
         public Stator ZoneStator =new Stator();
         public MessageEntity InformationSource = new();  
 
-        public ZoneEntity(IPhysicEntity physicEntity , TwoStatus TriggerState)
+        public ZoneEntity(ILocation Loacation , TwoStatus TriggerState)
         {
-            CurrentPhysicEntity = physicEntity;
+            TrigLoacation = Loacation;
             ZoneStator = new Stator(TriggerState);
         }
 
@@ -363,7 +368,7 @@ namespace DotAge.Core.Model
             {
                 return false;
             }
-            if (RectF.IsContain(TriggerZone , CurrentPhysicEntity.PhysicProperty.CrashBox))
+            if (RectF.IsContain(TriggerZone , TrigLoacation.CrashBox))
             {
                 ZoneStator.Update(true);
                 if (ZoneStator.IsTriggered() == true)
@@ -390,7 +395,7 @@ namespace DotAge.Core.Model
             }
             else
             {
-                TriggerDelegate.Invoke(RectF.CrossZone(TriggerZone, CurrentPhysicEntity.PhysicProperty.CrashBox));
+                TriggerDelegate.Invoke(RectF.CrossZone(TriggerZone, TrigLoacation.CrashBox));
                 InvokeCount++;
                 return true;
             }
