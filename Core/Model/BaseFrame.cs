@@ -183,9 +183,10 @@ namespace DotAge.Core.Model
 
     public class RenderEntity
     {
-        public TextureSprite Sprite = new TextureSprite();
+        public Sprite Sprite = new LerpSprite();
         public RenderEntity()
         {
+            Sprite = new LerpSprite(new TextureSprite() , new TextureSprite() , 1);//per 1 tick do lerp
             Sprite.Position = Vector2.Zero;
             Sprite.Size = new Vector2(32, 32);
         }

@@ -327,4 +327,86 @@ namespace DotAge.Core.View
             }
         }
     }
+
+    public class LerpSprite : Sprite
+    {
+        public TextureSprite StartSprite { get; private set; } = null;
+        public TextureSprite EndSprite { get; private set; } = null;
+        public int LerpDurationFrames { get; set; } = 0;
+        public int CurrentFrame { get; set; } = 0;
+        public float LerpFactor { get {return 1 / LerpDurationFrames; } }
+        public float LerpProgress { get { return CurrentFrame / LerpDurationFrames; } }
+
+        public bool InitLerp(TextureSprite Start , TextureSprite End , int Ticks)
+        {
+            if (Start == null || End == null || Ticks <= 0)
+            {
+                return false;
+            }
+            StartSprite = Start;
+            EndSprite = End;
+            LerpDurationFrames = (int)MathF.Ceiling((Engine.GameTick * Ticks) / 60);
+            return true;
+        }
+
+        public bool PushFrame()
+        {
+            if (CurrentFrame < LerpDurationFrames)
+            {
+                CurrentFrame++;
+                return true;
+            }
+            return false;
+        }
+
+        public bool ResetLerp()
+        {
+            CurrentFrame = 0;
+            return true;
+        }
+
+        public override bool CheckVaild()
+        {
+            if (StartSprite == null || EndSprite == null)
+            {
+                return false;
+            }
+            return base.CheckVaild();
+        }
+
+        public LerpSprite()
+        {
+
+        }
+
+        public LerpSprite(TextureSprite startSprite, TextureSprite endSprite , int Ticks)
+        {
+            var _ = InitLerp(startSprite, endSprite , Ticks) ? IsChanged = true : IsChanged = false;
+        }
+
+        public override bool Draw(SpriteBatch spriteBatch)
+        {
+            if (CheckVaild() == true)
+            {
+                spriteBatch.Draw(
+                    EndSprite.Region.Texture,
+                    destinationRectangle: new Rectangle(
+                        ((EndSprite.Position - StartSprite.Position) * LerpProgress + StartSprite.Position).ToPoint(),
+                        ((EndSprite.Size - StartSprite.Size) * LerpProgress + StartSprite.Size).ToPoint()),
+                    sourceRectangle: EndSprite.Region.TextureRect,
+                    EndSprite.TintColor,
+                    EndSprite.Rotation,
+                    EndSprite.Origin,
+                    EndSprite.Effect,
+                    EndSprite.LayerDepth
+                );
+                PushFrame();
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
 }

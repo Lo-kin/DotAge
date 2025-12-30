@@ -210,8 +210,8 @@ namespace DotAge.Core.View
     public class GameIndex
     {
         public List<BaseIndex> GridIndex = new List<BaseIndex>();
-        private float GridBlockWidth = 32 * 32;//px
-        private float GridBlockHeight = 32 * 32;//px
+        private float GridBlockWidth = 32 * 16;//px
+        private float GridBlockHeight = 32 * 16;//px
 
         public GameIndex()
         {

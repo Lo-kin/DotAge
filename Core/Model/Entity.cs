@@ -110,6 +110,7 @@ namespace DotAge.Core.Model
         public event Action OnUpdate;
 
         public bool IsRenderFollowPhysic = true;
+        public Vector2 FaceTo { get { return (PhysicProperty as PhysicEntity).Pioneer.Direct; } }
 
         public Entity(EngineAccessor accessor)
         {

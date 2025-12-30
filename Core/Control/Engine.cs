@@ -34,7 +34,11 @@ namespace DotAge.Core.Control
         public bool OverModifyRenderProperty = false;
 
         public const int GameTick = 20;//per 1000 / 20 = 50 Frames/s
+        public DateTime StartTime { get; set; } = DateTime.Now;
+        public DateTime LastTickTime { get; set; } = DateTime.Now;
+        public DateTime CurrentTime { get { return DateTime.Now; } }
         public int GameTime = 0;
+        public double TickDurationPercent { get { return (CurrentTime - LastTickTime).TotalMilliseconds / GameTick; }}
         public double LastLoopTime = 0;
 
         public List<Script> Scripts = new List<Script>();
@@ -83,7 +87,7 @@ namespace DotAge.Core.Control
             {
                 for (int x = 0; x < 50; x++)
                 {
-                    if (x ==3)
+                    if (x ==3 && y != 4 && y != 5)
                     {
                         Water ground = new Water()
                         {
@@ -138,7 +142,7 @@ namespace DotAge.Core.Control
             Door door = (Door)CreateEntity(new Door(CurrentEngineAccessor)
             {
             });
-            door.PhysicProperty.Position = new Vector2(200, 30);
+            door.PhysicProperty.Position = new Vector2(32 * 3, 32 * 4);
             door.RenderProperty.Sprite.Position = door.PhysicProperty.Position;
             entityControler.RegisterKey(new ControlerFunc()
             {
@@ -188,6 +192,9 @@ namespace DotAge.Core.Control
             Scripts.Add(new Script(CurrentEngineAccessor));
 
             GameData.MainPlayer.ControlEntity = item1;
+
+            StartTime = DateTime.Now;
+            LastTickTime = DateTime.Now;
 
             return true;
         }
@@ -268,10 +275,11 @@ namespace DotAge.Core.Control
                             {
                                 var crosszone = RectF.CrossZone(UpdateEntity.PhysicProperty.WishRange , BeingUpdateEntity.PhysicProperty.CrashBox);
                                 var crossvec = crosszone.Size / 2;
-                                var side = RectF.RectDirect(UpdateEntity.PhysicProperty.CrashBox , BeingUpdateEntity.PhysicProperty.CrashBox);
-                                var realvec = crossvec * side;
-                                UpdateEntity.PhysicProperty.WishForward = MathTool.Project(UpdateEntity.PhysicProperty.WishForward , -realvec);  
-                                BeingUpdateEntity.PhysicProperty.WishForward = MathTool.Project(BeingUpdateEntity.PhysicProperty.WishForward , realvec);
+                                var oside = RectF.RectDirect(UpdateEntity.PhysicProperty.CrashBox , crosszone);
+                                var bside = RectF.RectDirect(BeingUpdateEntity.PhysicProperty.CrashBox , crosszone);
+                                
+                                UpdateEntity.PhysicProperty.WishForward = MathTool.Project(UpdateEntity.PhysicProperty.WishForward , -crossvec * oside);  
+                                BeingUpdateEntity.PhysicProperty.WishForward = MathTool.Project(BeingUpdateEntity.PhysicProperty.WishForward , -crossvec * bside);
                                 UpdateEntity.OnCrash(BeingUpdateEntity);
                                 BeingUpdateEntity.OnCrash(UpdateEntity);
                             }
@@ -300,7 +308,8 @@ namespace DotAge.Core.Control
                 {
                     SleepTime = (float)ts.TotalMilliseconds;
                 }
-                
+                LastTickTime = DateTime.Now;
+
             }
 
             return true;
