@@ -73,7 +73,7 @@ namespace DotAge.Core.Model
         }
     }
 
-    public class GameEntity 
+    public class GameEntity
     {
         public float LastHealth = 100f;
         public float Health = 100f;
@@ -106,7 +106,7 @@ namespace DotAge.Core.Model
 
         }
 
-        public float SetHealth(float _health , Entity Source)
+        public float SetHealth(float _health, Entity Source)
         {
             LastHealth = Health;
             Health = _health;
@@ -118,13 +118,13 @@ namespace DotAge.Core.Model
             return Health;
         }
 
-        public float ModifyHealth(float _health , Entity Source)
+        public float ModifyHealth(float _health, Entity Source)
         {
             if (Health + _health > MaxHealth)
             {
                 _health = MaxHealth - Health;
             }
-            SetHealth(Health + _health , Source);
+            SetHealth(Health + _health, Source);
             return Health;
         }
 
@@ -181,40 +181,92 @@ namespace DotAge.Core.Model
         }
     }
 
+    public class LerpRenderEntity : RenderEntity
+    {
+        public LerpSprite LoadAsLerp
+        {
+            get
+            {
+                if (Sprite is LerpSprite)
+                {
+                    return Sprite as LerpSprite;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            set
+            {
+                Sprite = value;
+            }
+        }
+
+        public LerpRenderEntity() : base()
+        {
+            Sprite = new LerpSprite(new TextureRenderProperty(), new TextureRenderProperty(), 1);//per 1 tick do lerp
+            Sprite.RenderProperty.Position = Vector2.Zero;
+            (Sprite.RenderProperty as TextureRenderProperty).Size = new Vector2(32, 32);
+        }
+
+        public override bool UpdatePosition(Vector2 Position)
+        {
+            LoadAsLerp.PushPostion(Position);
+            return true;
+        }
+
+        public override bool UpdateSize(Vector2 Size)
+        {
+            LoadAsLerp.PushSize(Size);
+            return true;
+        }
+
+
+        public override bool LoadTexture(string asssteName)
+        {
+            (LoadAsLerp.RenderProperty as TextureRenderProperty).Region = TextureManager.GetTextureRegionByName(asssteName);
+            return true;
+        }
+    }
+
     public class RenderEntity
     {
-        public Sprite Sprite = new LerpSprite();
+        public Sprite Sprite = new TextureSprite();
+
         public RenderEntity()
         {
-            Sprite = new LerpSprite(new TextureSprite() , new TextureSprite() , 1);//per 1 tick do lerp
-            Sprite.Position = Vector2.Zero;
-            Sprite.Size = new Vector2(32, 32);
+            var sprite = new TextureSprite();//per 1 tick do lerp
+            sprite.RenderProperty.Position = Vector2.Zero;
+            (sprite.RenderProperty as TextureRenderProperty).Size = new Vector2(32, 32);
+            Sprite = sprite;
         }
 
-        public bool UpdatePosition(Vector2 Position)
+        public virtual bool UpdatePosition(Vector2 Position)
         {
-            Sprite.Position = Position;
+            Sprite.RenderProperty.Position = Position;
             return true;
         }
 
-        public bool UpdateSize(Vector2 Size)
+        public virtual bool UpdateSize(Vector2 Size)
         {
-            Sprite.Size = Size;
+            (Sprite.RenderProperty as TextureRenderProperty).Size = Size;
             return true;
         }
 
+
+        public virtual bool LoadTexture(string asssteName)
+        {
+            (Sprite.RenderProperty as TextureRenderProperty).Region = TextureManager.GetTextureRegionByName(asssteName);
+            return true;
+        }
         public bool RemoveTexture(int Index)
         {
 
             return true;
         }
 
-        public bool LoadTexture(string asssteName)
-        {
-            Sprite.Region = TextureManager.GetTextureRegionByName(asssteName);
-            return true;
-        }
     }
+
 
     public class AnimationProperty : RenderEntity
     {

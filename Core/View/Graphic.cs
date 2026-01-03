@@ -53,8 +53,8 @@ namespace DotAge.Core.View
 
             _font = Content.Load<SpriteFont>("Default");
             IsLoaded = true;
-            DrawInfo.TextSource = CoreInfo;
-            DrawInfo.Font = _font;
+            (DrawInfo.RenderProperty as TextRenderProperty).TextSource = CoreInfo;
+            (DrawInfo.RenderProperty as TextRenderProperty).Font = _font;
             // TODO: use this.Content to load your game content here
         }
         protected override void Update(GameTime gameTime)
@@ -64,8 +64,6 @@ namespace DotAge.Core.View
                 Exit();
             }
             // TODO: Add your update logic here
-
-            
             base.Update(gameTime);
         }
 
@@ -79,9 +77,9 @@ namespace DotAge.Core.View
             {
                 foreach (var item in RenderObjects)
                 {
-                    if (item.IsVisible == true)
+                    if (item.RenderProperty.IsVisible == true)
                     {
-                        if (item.IsStatic == true)
+                        if (item.RenderProperty.IsStatic == true)
                         {
                             item.Draw(StaticSprite);
                         }
@@ -113,10 +111,14 @@ namespace DotAge.Core.View
         public MessageEntity CoreInfo = new MessageEntity();
         public TextSprite DrawInfo = new TextSprite()
         {
-            IsStatic = true,
-            Position = new Vector2(10, 10),
-            TintColor = Color.Yellow,
-            Font = _font,
+            RenderProperty = new TextRenderProperty()
+            {
+                IsStatic = true,
+                Position = new Vector2(10, 10),
+                TintColor = Color.Yellow,
+                Font = _font,
+            },
+
         };
 
     }
@@ -124,47 +126,27 @@ namespace DotAge.Core.View
 
     public abstract class Sprite
     {
-        public Vector2 _position = Vector2.Zero;
-        public Color _tintColor = Color.White;
-        public float _rotation = 0f;
-        public Vector2 _origin = Vector2.Zero;
-        public SpriteEffects _effect  = SpriteEffects.None;
-        public float _layerDepth  = 0f;
-        public bool _isVisible = true;
-        public bool _isStatic = false;
-        public bool _isChanged = false;
-        public Vector2 Position { get { return _position; } set { if (!_position.Equals(value)) _position = value; IsChanged = true; } } 
-        public Color TintColor { get { return _tintColor; } set { if (!_tintColor.Equals(value)) _tintColor = value;IsChanged = true; } } 
-        public float Rotation { get { return _rotation; } set {if (_rotation != value) _rotation = value; IsChanged = true; } } 
-        public Vector2 Origin { get { return _origin; } set {if (!_origin.Equals(value)) _origin = value;IsChanged = true; } }
-        public SpriteEffects Effect { get { return _effect; } set {if(_effect != value) _effect = value;IsChanged = true; } } 
-        public float LayerDepth { get { return _layerDepth; } set {if (_layerDepth != value) _layerDepth = value;IsChanged = true; } } 
-        public bool IsVisible { get { return _isVisible; } set {if (_isVisible != value) _isVisible = value; IsChanged = true; } } 
-        public bool IsStatic { get { return _isStatic; } set {if (_isStatic != value) _isStatic = value;IsChanged = true; } }
-        public bool IsChanged { get { return _isChanged; } set { _isChanged = value;} }
+        public BaseRenderProperty RenderProperty = null;
         public Sprite()
         {
-        }
 
-        public Sprite( float rotation, Vector2 origin, SpriteEffects effect, float layerDepth)
-        {
-            Rotation = rotation;
-            Origin = origin;
-            Effect = effect;
-            LayerDepth = layerDepth;
         }
 
         public virtual bool CheckVaild()
         {
-            if (IsStatic == true)
+            if (RenderProperty == null)
             {
-                if (IsChanged == true)
+                return false;
+            }
+            if (RenderProperty.IsStatic == true)
+            {
+                if (RenderProperty.IsChanged == true)
                 {
                     return true;
                 }
                 else
                 {
-                    IsChanged = false;
+                    RenderProperty.IsChanged = false;
                     return false;
                 }
             }
@@ -178,23 +160,21 @@ namespace DotAge.Core.View
 
         public virtual bool Dispose()
         {
+            RenderProperty = null;
+
             return true;
         }
     }
 
     public class TextureSprite : Sprite
     {
-        public TextureRegion _region = null;
-        public Vector2 _size = Vector2.Zero;
-        public Vector2 _scale = Vector2.One;
-
-        public TextureRegion Region { get { return _region; } set {if (_region != value) _region = value; IsChanged = true; } }
-        public Vector2 Size { get { return _size; } set { if (!_size.Equals(value))_size = value; IsChanged = true; } }
-        public Vector2 Scale { get { return _scale; } set {if (!_scale.Equals(value)) _scale = value; IsChanged = true; } }
-
         public override bool CheckVaild()
         {
-            if (Region == null)
+            if (RenderProperty is not TextureRenderProperty)
+            {
+                return false;
+            }
+            if ((RenderProperty as TextureRenderProperty).Region == null)
             {
                 return false;
             }
@@ -203,28 +183,29 @@ namespace DotAge.Core.View
 
         public TextureSprite()
         {
+            RenderProperty = new TextureRenderProperty();
         }
 
-        public TextureSprite(TextureRegion texture, Vector2 position, Vector2 size, Color color, float rotation, Vector2 origin,Vector2 scale ,  SpriteEffects effect, float layerDepth)
+        public TextureSprite(TextureRenderProperty renderProperty)
         {
-            Region = texture;
-            Position = position;
-            Size = size;
-            TintColor = color;
-            Rotation = rotation;
-            Origin = origin;
-            Effect = effect;
-            LayerDepth = layerDepth;
-            Scale = scale;
+            RenderProperty = renderProperty;
         }
 
         public override bool Draw(SpriteBatch spriteBatch)
         {
             if (CheckVaild() == true)
             {
-                //Texture2D texture, Vector2 position, Rectangle? sourceRectangle, Color color, float rotation, Vector2 origin, Vector2 scale, SpriteEffects effects, float layerDepth)
-                //spriteBatch.Draw(Region.Texture ,Position , (Rectangle)Region.TextureRect , TintColor, Rotation, Origin,Scale ,  Effect, LayerDepth);
-                spriteBatch.Draw(Region.Texture, destinationRectangle: new Rectangle(Position.ToPoint(), Size.ToPoint()), sourceRectangle: Region.TextureRect, TintColor, Rotation, Origin, Effect, LayerDepth);
+                var property = RenderProperty as TextureRenderProperty;
+                spriteBatch.Draw(
+                    property.Region.Texture,
+                    destinationRectangle: new Rectangle(property.Position.ToPoint(), property.Size.ToPoint()), 
+                    sourceRectangle: property.Region.TextureRect,
+                    property.TintColor,
+                    property.Rotation,
+                    property.Origin,
+                    property.Effect,
+                    property.LayerDepth
+                );
                 return true;
             }
             else
@@ -236,33 +217,18 @@ namespace DotAge.Core.View
 
     public class TextSprite : Sprite
     {
-        public MessageEntity _textSource = null;
-        
-        public SpriteFont _font = Graphic._font;
-        public float _scale = 1.0f;
-
-        public MessageEntity TextSource { get { return _textSource; } set {if (_textSource != value) _textSource = value; IsChanged = true; } }
-        public SpriteFont Font { get { return _font; } set {if (_font != value) _font = value; IsChanged = true; } }
-        public float Scale { get { return _scale; } set {if (_scale != value) _scale = value; IsChanged = true; } }
         public TextSprite()
         {
+            RenderProperty = new TextRenderProperty();
+        }
 
-        }
-        public TextSprite(MessageEntity text, SpriteFont font, Vector2 position, Color color, float rotation, Vector2 origin, SpriteEffects effect, float layerDepth, float scale)
-        {
-            TextSource = text;
-            Font = font;
-            Position = position;
-            TintColor = color;
-            Rotation = rotation;
-            Origin = origin;
-            Effect = effect;
-            LayerDepth = layerDepth;
-            Scale = scale;
-        }
         public override bool CheckVaild()
         {
-            if (Font == null)
+            if (RenderProperty is not TextRenderProperty)
+            {
+                return false;
+            }
+            if ((RenderProperty as TextRenderProperty).Font == null)
             {
                 return false;
             }
@@ -273,7 +239,18 @@ namespace DotAge.Core.View
         {
             if (CheckVaild() == true)
             {
-                spriteBatch.DrawString(Font, TextSource.Message, Position, TintColor, Rotation, Origin, Scale, Effect, LayerDepth);
+                var property = RenderProperty as TextRenderProperty;
+                spriteBatch.DrawString(
+                    property.Font,
+                    property.TextSource.Message,
+                    property.Position, 
+                    property.TintColor, 
+                    property.Rotation, 
+                    property.Origin, 
+                    property.Scale, 
+                    property.Effect,
+                    property.LayerDepth
+                );
                 return true;
             }
             else
@@ -286,8 +263,6 @@ namespace DotAge.Core.View
     public class AnimationSprite : Sprite
     {
         public Animation Animation = null;
-        public Vector2 Size = Vector2.Zero;
-        public Vector2 Scale = Vector2.One;
 
         public override bool CheckVaild()
         {
@@ -302,23 +277,23 @@ namespace DotAge.Core.View
         {
         }
 
-        public AnimationSprite(TextureRegion texture, Vector2 position, Vector2 size, Color color, float rotation, Vector2 origin, Vector2 scale, SpriteEffects effect, float layerDepth)
-        {
-            Position = position;
-            Size = size;
-            TintColor = color;
-            Rotation = rotation;
-            Origin = origin;
-            Effect = effect;
-            LayerDepth = layerDepth;
-            Scale = scale;
-        }
 
         public override bool Draw(SpriteBatch spriteBatch)
         {
             if (CheckVaild() == true)
             {
-                spriteBatch.Draw(Animation.CurrentFrame.Texture, destinationRectangle: new Rectangle(Position.ToPoint(), Size.ToPoint()), sourceRectangle: Animation.CurrentFrame.TextureRect, TintColor, Rotation, Origin, Effect, LayerDepth);
+                var property = RenderProperty as TextureRenderProperty;
+                spriteBatch.Draw(
+                    Animation.CurrentFrame.Texture,
+                    destinationRectangle: new Rectangle(property.Position.ToPoint(), property.Size.ToPoint()), 
+                    sourceRectangle: Animation.CurrentFrame.TextureRect,
+                    property.TintColor,
+                    property.Rotation,
+                    property.Origin,
+                    property.Effect,
+                    property.LayerDepth
+                );
+                Animation.Update(1);
                 return true;
             }
             else
@@ -328,16 +303,24 @@ namespace DotAge.Core.View
         }
     }
 
-    public class LerpSprite : Sprite
+    public class LerpSprite : TextureSprite
     {
-        public TextureSprite StartSprite { get; private set; } = null;
-        public TextureSprite EndSprite { get; private set; } = null;
-        public int LerpDurationFrames { get; set; } = 0;
-        public int CurrentFrame { get; set; } = 0;
+        public TextureRenderProperty StartSprite { get; set; } = null;
+        public TextureRenderProperty EndSprite { get; set; } = null;
+        public float LerpDurationFrames { get; set; } = 0;
+        public float CurrentFrame { get; set; } = 0;
         public float LerpFactor { get {return 1 / LerpDurationFrames; } }
         public float LerpProgress { get { return CurrentFrame / LerpDurationFrames; } }
 
-        public bool InitLerp(TextureSprite Start , TextureSprite End , int Ticks)
+        public int LoadEngineTick(int Tick)
+        {
+            int Duration = 60 * Tick;
+            LerpDurationFrames = Duration;
+            ResetLerp();
+            return Duration;
+        }
+
+        public bool InitLerp(TextureRenderProperty Start , TextureRenderProperty End , int Ticks)
         {
             if (Start == null || End == null || Ticks <= 0)
             {
@@ -345,7 +328,29 @@ namespace DotAge.Core.View
             }
             StartSprite = Start;
             EndSprite = End;
-            LerpDurationFrames = (int)MathF.Ceiling((Engine.GameTick * Ticks) / 60);
+            LoadEngineTick(Ticks);
+            return true;
+        }
+
+        public bool PushPostion(Vector2 position )
+        {
+            StartSprite.Position = EndSprite.Position;
+            EndSprite.Position = position;
+            ResetLerp();
+            return true;
+        }
+
+        public bool PushSize(Vector2 size )
+        {
+            StartSprite.Size = EndSprite.Size;
+            EndSprite.Size = size;
+            ResetLerp();
+            return true;
+        }
+
+        public bool PushTicks(int Ticks)
+        {
+            LoadEngineTick(Ticks);
             return true;
         }
 
@@ -354,6 +359,8 @@ namespace DotAge.Core.View
             if (CurrentFrame < LerpDurationFrames)
             {
                 CurrentFrame++;
+                RenderProperty.Position = (EndSprite.Position - StartSprite.Position) * LerpProgress + StartSprite.Position;
+                (RenderProperty as TextureRenderProperty).Size = EndSprite.Size - StartSprite.Size * LerpProgress + StartSprite.Size;
                 return true;
             }
             return false;
@@ -379,9 +386,9 @@ namespace DotAge.Core.View
 
         }
 
-        public LerpSprite(TextureSprite startSprite, TextureSprite endSprite , int Ticks)
+        public LerpSprite(TextureRenderProperty startSprite, TextureRenderProperty endSprite , int Ticks)
         {
-            var _ = InitLerp(startSprite, endSprite , Ticks) ? IsChanged = true : IsChanged = false;
+            var _ = InitLerp(startSprite, endSprite , Ticks) ? RenderProperty.IsChanged = true : RenderProperty.IsChanged = false;
         }
 
         public override bool Draw(SpriteBatch spriteBatch)
@@ -389,18 +396,19 @@ namespace DotAge.Core.View
             if (CheckVaild() == true)
             {
                 spriteBatch.Draw(
-                    EndSprite.Region.Texture,
+                    (RenderProperty as TextureRenderProperty).Region.Texture,
                     destinationRectangle: new Rectangle(
-                        ((EndSprite.Position - StartSprite.Position) * LerpProgress + StartSprite.Position).ToPoint(),
-                        ((EndSprite.Size - StartSprite.Size) * LerpProgress + StartSprite.Size).ToPoint()),
-                    sourceRectangle: EndSprite.Region.TextureRect,
-                    EndSprite.TintColor,
-                    EndSprite.Rotation,
-                    EndSprite.Origin,
-                    EndSprite.Effect,
-                    EndSprite.LayerDepth
+                        RenderProperty.Position.ToPoint(),
+                        (RenderProperty as TextureRenderProperty).Size.ToPoint()),
+                    sourceRectangle: (RenderProperty as TextureRenderProperty).Region.TextureRect,
+                    RenderProperty.TintColor,
+                    RenderProperty.Rotation,
+                    RenderProperty.Origin,
+                    RenderProperty.Effect,
+                    RenderProperty.LayerDepth
                 );
                 PushFrame();
+
                 return true;
             }
             else

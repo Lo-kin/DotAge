@@ -103,7 +103,7 @@ namespace DotAge.Core.Model
         public List<Entity> Children = new List<Entity>();
         public Entity Parent = null;
         public PhysicBase PhysicProperty { get; set; } = new PhysicEntity();
-        public RenderEntity RenderProperty { get; set; } = new RenderEntity();
+        public RenderEntity RenderProperty { get; set; } = new LerpRenderEntity();
         public GameEntity GameProperty { get; set; } = new GameEntity();
         public List<BaseIndex> BelongIndex { get; set; } = new List<BaseIndex>();
 
@@ -552,7 +552,8 @@ namespace DotAge.Core.Model
         {
             IsRenderFollowPhysic = false;
             RenderProperty.LoadTexture("MissingTexture");
-            RenderProperty.Sprite.Size = new Vector2(32, 64);
+            (RenderProperty as LerpRenderEntity).LoadAsLerp.InitLerp(null , null, 1);
+            RenderProperty.UpdateSize(new Vector2(32, 64));
             PhysicProperty.Size = new Vector2(32, 64);
         }
 
@@ -566,52 +567,16 @@ namespace DotAge.Core.Model
             if (IsOpen == true)
             {
                 PhysicProperty.Size = new Vector2(0 , 0);
-                RenderProperty.Sprite.Size = new Vector2(0, 0);
-                Thread thread = new Thread(() =>
-                {
-                    IsProcessing = true;
-                    process = 0f;
-                    while (process < 1f)
-                    {
-                        Animating();
-                        Thread.Sleep(10);
-                    }
-                    IsProcessing = false;
-                });
-                thread.Start();
+                var start = (RenderProperty as LerpRenderEntity).LoadAsLerp.StartSprite;
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.StartSprite = (RenderProperty as LerpRenderEntity).LoadAsLerp.EndSprite;
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.EndSprite = start;
             }
             else
             {
-                RenderProperty.Sprite.Size = new Vector2(32, 64);
                 PhysicProperty.Size = new Vector2(32, 64);
-                Thread thread = new Thread(() =>
-                {
-                    IsProcessing = true;
-                    process = 0f;
-                    while (process < 1f)
-                    {
-                        Animating();
-                        Thread.Sleep(10);
-                    }
-                    IsProcessing = false;
-                });
-                thread.Start();
-            }
-            return true;
-        }
-
-        public bool Animating()
-        {
-            process += 0.01f;
-            if (IsOpen == true)
-            {
-                RenderProperty.Sprite.Size = new Vector2(32 * (1 - process), 64);
-                PhysicProperty.Size = new Vector2(32 * (1 - process), 64 * (1 - process));
-            }
-            else
-            {
-                RenderProperty.Sprite.Size = new Vector2(32 * process, 64);
-                PhysicProperty.Size = new Vector2(32 * process, 64 * process);
+                var end = (RenderProperty as LerpRenderEntity).LoadAsLerp.EndSprite;
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.EndSprite = (RenderProperty as LerpRenderEntity).LoadAsLerp.StartSprite;
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.StartSprite = end;
             }
             return true;
         }

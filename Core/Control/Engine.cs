@@ -133,8 +133,6 @@ namespace DotAge.Core.Control
                 },
             });
 
-
-
             EntityControler entityControler = new(item1);
             entityControler.EngineAccess = CurrentEngineAccessor;
             GameData.AddControler(entityControler);
@@ -143,7 +141,7 @@ namespace DotAge.Core.Control
             {
             });
             door.PhysicProperty.Position = new Vector2(32 * 3, 32 * 4);
-            door.RenderProperty.Sprite.Position = door.PhysicProperty.Position;
+            door.RenderProperty.Sprite.RenderProperty.Position = door.PhysicProperty.Position;
             entityControler.RegisterKey(new ControlerFunc()
             {
                 BindKey = Keys.E,
@@ -285,6 +283,7 @@ namespace DotAge.Core.Control
                             }
                         }
                         UpdateEntity.PhysicProperty.UpdatePosition(); 
+
                     }
                     
                     foreach (var item in LoadRangeEntity)
@@ -389,8 +388,8 @@ namespace DotAge.Core.Control
         public TextSprite CreateMessage(MessageEntity messageEntity)
         {
             TextSprite sprite = new TextSprite();
-            sprite.TintColor = Color.White;
-            sprite.TextSource = messageEntity;
+            sprite.RenderProperty.TintColor = Color.White;
+            (sprite.RenderProperty as TextRenderProperty).TextSource = messageEntity;
             CurrentGrapic.RenderObjects.Add(sprite);
             return sprite;
         }
