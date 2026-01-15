@@ -164,6 +164,22 @@ namespace DotAge.Core.View
 
             return true;
         }
+
+        public virtual bool UpdatePosition(Vector2 position)
+        {
+            RenderProperty.Position = position;
+            return true;
+        }
+
+        public virtual bool UpdateSize(Vector2 size)
+        {
+            if (RenderProperty is TextureRenderProperty)
+            {
+                (RenderProperty as TextureRenderProperty).Size = size;
+                return true;
+            }
+            return false;
+        }
     }
 
     public class TextureSprite : Sprite
@@ -312,6 +328,8 @@ namespace DotAge.Core.View
         public float LerpFactor { get {return 1 / LerpDurationFrames; } }
         public float LerpProgress { get { return CurrentFrame / LerpDurationFrames; } }
 
+        public bool AutoLoop { get; set; } = false;
+
         public int LoadEngineTick(int Tick)
         {
             int Duration = 60 * Tick;
@@ -336,7 +354,7 @@ namespace DotAge.Core.View
         {
             StartSprite.Position = EndSprite.Position;
             EndSprite.Position = position;
-            ResetLerp();
+            
             return true;
         }
 
@@ -344,7 +362,7 @@ namespace DotAge.Core.View
         {
             StartSprite.Size = EndSprite.Size;
             EndSprite.Size = size;
-            ResetLerp();
+            
             return true;
         }
 
@@ -360,10 +378,26 @@ namespace DotAge.Core.View
             {
                 CurrentFrame++;
                 RenderProperty.Position = (EndSprite.Position - StartSprite.Position) * LerpProgress + StartSprite.Position;
-                (RenderProperty as TextureRenderProperty).Size = EndSprite.Size - StartSprite.Size * LerpProgress + StartSprite.Size;
+                (RenderProperty as TextureRenderProperty).Size = (EndSprite.Size - StartSprite.Size) * LerpProgress + StartSprite.Size;
                 return true;
             }
+            else if (AutoLoop == true)
+            {
+                ReverseLerp();
+            }
             return false;
+        }
+
+        public bool ReverseLerp()
+        {
+            var LastPosition = StartSprite.Position;
+            var LastSize = StartSprite.Size;
+            StartSprite.Position = EndSprite.Position;
+            StartSprite.Size = EndSprite.Size;
+            EndSprite.Position = LastPosition;
+            EndSprite.Size = LastSize;
+            ResetLerp();
+            return true;
         }
 
         public bool ResetLerp()

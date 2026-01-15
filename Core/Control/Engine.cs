@@ -87,7 +87,7 @@ namespace DotAge.Core.Control
             {
                 for (int x = 0; x < 50; x++)
                 {
-                    if (x ==3 && y != 4 && y != 5)
+                    if ((x ==3 || x == 23 || y == 4 || y == 14) && !(x == 3 &&( y == 4 || y == 5)))
                     {
                         Water ground = new Water()
                         {
@@ -141,7 +141,8 @@ namespace DotAge.Core.Control
             {
             });
             door.PhysicProperty.Position = new Vector2(32 * 3, 32 * 4);
-            door.RenderProperty.Sprite.RenderProperty.Position = door.PhysicProperty.Position;
+            door.RenderProperty.UpdatePosition(door.PhysicProperty.Position);
+            door.RenderProperty.UpdatePosition(door.PhysicProperty.Position);
             entityControler.RegisterKey(new ControlerFunc()
             {
                 BindKey = Keys.E,

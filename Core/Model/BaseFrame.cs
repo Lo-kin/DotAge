@@ -221,6 +221,11 @@ namespace DotAge.Core.Model
             return true;
         }
 
+        public bool ReverseLerp()
+        {
+            LoadAsLerp.ReverseLerp();
+            return true;
+        }
 
         public override bool LoadTexture(string asssteName)
         {
@@ -264,7 +269,6 @@ namespace DotAge.Core.Model
 
             return true;
         }
-
     }
 
 
@@ -340,6 +344,8 @@ namespace DotAge.Core.Model
             }
         }
         public Action<IPhysicEntity> OnCrashEvent;
+        public bool IsMoving { get; set; } = false;
+        public bool IsSizeChanging { get; set; } = false;
 
         public virtual bool MoveForward(Vector2 _vec)
         {
@@ -350,6 +356,14 @@ namespace DotAge.Core.Model
         public virtual bool UpdatePosition()
         {
             Position += WishForward;
+            if (WishForward != Vector2.Zero)
+            {
+                IsMoving = true;
+            }
+            else
+            {
+                IsMoving = false;
+            }
             WishForward = Vector2.Zero;
             return true;
         }

@@ -103,7 +103,7 @@ namespace DotAge.Core.Model
         public List<Entity> Children = new List<Entity>();
         public Entity Parent = null;
         public PhysicBase PhysicProperty { get; set; } = new PhysicEntity();
-        public RenderEntity RenderProperty { get; set; } = new LerpRenderEntity();
+        public RenderEntity RenderProperty { get; set; } = new RenderEntity();
         public GameEntity GameProperty { get; set; } = new GameEntity();
         public List<BaseIndex> BelongIndex { get; set; } = new List<BaseIndex>();
 
@@ -306,13 +306,26 @@ namespace DotAge.Core.Model
     {
         public Soildre(EngineAccessor accessor) : base(accessor)
         {
+            RenderProperty = new LerpRenderEntity();
             RenderProperty.LoadTexture("TV_Happy");
             
         }
 
         public override bool Update()
         {
-            return base.Update();
+            base.Update();
+
+            if (PhysicProperty.IsMoving == true)
+            {
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(38, 32));
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(26, 32));
+            }
+            else
+            {
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(32, 32));
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(32, 32));
+            }
+            return true;
         }
     }
 
@@ -550,10 +563,14 @@ namespace DotAge.Core.Model
 
         public Door(EngineAccessor accessor) : base(accessor)
         {
+            RenderProperty = new LerpRenderEntity();
+            (RenderProperty as LerpRenderEntity).LoadAsLerp.AutoLoop = false;
             IsRenderFollowPhysic = false;
             RenderProperty.LoadTexture("MissingTexture");
-            (RenderProperty as LerpRenderEntity).LoadAsLerp.InitLerp(null , null, 1);
+            (RenderProperty as LerpRenderEntity).LoadAsLerp.InitLerp(new TextureRenderProperty() , new TextureRenderProperty(), 1);
+            RenderProperty.UpdateSize(new Vector2(0, 32));
             RenderProperty.UpdateSize(new Vector2(32, 64));
+            
             PhysicProperty.Size = new Vector2(32, 64);
         }
 
@@ -567,16 +584,12 @@ namespace DotAge.Core.Model
             if (IsOpen == true)
             {
                 PhysicProperty.Size = new Vector2(0 , 0);
-                var start = (RenderProperty as LerpRenderEntity).LoadAsLerp.StartSprite;
-                (RenderProperty as LerpRenderEntity).LoadAsLerp.StartSprite = (RenderProperty as LerpRenderEntity).LoadAsLerp.EndSprite;
-                (RenderProperty as LerpRenderEntity).LoadAsLerp.EndSprite = start;
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.ReverseLerp();
             }
             else
             {
                 PhysicProperty.Size = new Vector2(32, 64);
-                var end = (RenderProperty as LerpRenderEntity).LoadAsLerp.EndSprite;
-                (RenderProperty as LerpRenderEntity).LoadAsLerp.EndSprite = (RenderProperty as LerpRenderEntity).LoadAsLerp.StartSprite;
-                (RenderProperty as LerpRenderEntity).LoadAsLerp.StartSprite = end;
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.ReverseLerp(); 
             }
             return true;
         }
