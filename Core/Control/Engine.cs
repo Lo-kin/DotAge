@@ -82,7 +82,7 @@ namespace DotAge.Core.Control
             TextureManager.LoadedTextures["Character"].LoadName("Gate", new Point(2, 8));
             TextureManager.LoadedTextures["Character"].LoadName("Blocker", new Point(2, 9));
 
-            TerrainChunk tc = new TerrainChunk();
+            TerrainChunk tc = new TerrainChunk(Vector2.Zero);
             for (int y = 0; y < 50; y++)
             {
                 for (int x = 0; x < 50; x++)
@@ -91,7 +91,7 @@ namespace DotAge.Core.Control
                     {
                         Water ground = new Water()
                         {
-                            PhysicProperty = new LocationEntity()
+                            PhysicProperty = new PhysicEntity()
                             {
                                 Position = new Vector2(x * 32, y * 32),
                                 Size = new Vector2(32, 32),
@@ -104,7 +104,7 @@ namespace DotAge.Core.Control
                     {
                         Ground ground = new Ground()
                         {
-                            PhysicProperty = new LocationEntity()
+                            PhysicProperty = new PhysicEntity()
                             {
                                 Position = new Vector2(x * 32, y * 32),
                                 Size = new Vector2(0, 0),
@@ -133,9 +133,9 @@ namespace DotAge.Core.Control
                 },
             });
 
-            EntityControler entityControler = new(item1);
-            entityControler.EngineAccess = CurrentEngineAccessor;
-            GameData.AddControler(entityControler);
+            Player player = new(item1 , CurrentEngineAccessor);
+
+            GameData.SetMainPlayer(player);
 
             Door door = (Door)CreateEntity(new Door(CurrentEngineAccessor)
             {
@@ -143,16 +143,6 @@ namespace DotAge.Core.Control
             door.PhysicProperty.Position = new Vector2(32 * 3, 32 * 4);
             door.RenderProperty.UpdatePosition(door.PhysicProperty.Position);
             door.RenderProperty.UpdatePosition(door.PhysicProperty.Position);
-            entityControler.RegisterKey(new ControlerFunc()
-            {
-                BindKey = Keys.E,
-                TriggerStat = TwoStatus.ActiveToFreeze,
-                ControlerFuncDelegate = (ClickStat, ClickPos) => {
-                    door.Use();
-                    return ItemInformation.NullItem;
-                },
-                ControlerFuncescription = "opendoor"
-            });
 
             ZoneEntity _moveLeft = new ZoneEntity(Controlers.MouseEntity, TwoStatus.Any)
             {
@@ -189,8 +179,6 @@ namespace DotAge.Core.Control
             GameData.ZoneEntities.Add(_moveBottom);
 
             Scripts.Add(new Script(CurrentEngineAccessor));
-
-            GameData.MainPlayer.ControlEntity = item1;
 
             StartTime = DateTime.Now;
             LastTickTime = DateTime.Now;
@@ -237,11 +225,10 @@ namespace DotAge.Core.Control
                         item.Trigger();
                     }
 
-                    GameData.MainPlayer.ControlEntity.PhysicProperty.UpdateWish();
-                    GameData.GameIndex.UpdateIndex(GameData.MainPlayer.ControlEntity);
-                    List<Entity> LoadRangeEntity = GameData.MainPlayer.ControlEntity.GetRangeEntity();
+                    Player MainPlayer = GameData.MainPlayer;
+                    List<Entity> LoadRangeEntity = MainPlayer.ControlEntity.GetRangeEntity();
 
-                    foreach (Entity item in LoadRangeEntity)
+                    foreach (Entity item in MainPlayer.ControlEntity.GetRangeEntity())
                     {
                         item.PhysicProperty.UpdateWish();
                         GameData.GameIndex.UpdateIndex(item);
@@ -269,23 +256,49 @@ namespace DotAge.Core.Control
                             {
                                 continue;
                             }
-
                             if (RectF.IsContain(UpdateEntity.PhysicProperty.WishRange , BeingUpdateEntity.PhysicProperty.WishRange))
                             {
-                                var crosszone = RectF.CrossZone(UpdateEntity.PhysicProperty.WishRange , BeingUpdateEntity.PhysicProperty.CrashBox);
-                                var crossvec = crosszone.Size / 2;
-                                var oside = RectF.RectDirect(UpdateEntity.PhysicProperty.CrashBox , crosszone);
-                                var bside = RectF.RectDirect(BeingUpdateEntity.PhysicProperty.CrashBox , crosszone);
-                                
-                                UpdateEntity.PhysicProperty.WishForward = MathTool.Project(UpdateEntity.PhysicProperty.WishForward , -crossvec * oside);  
-                                BeingUpdateEntity.PhysicProperty.WishForward = MathTool.Project(BeingUpdateEntity.PhysicProperty.WishForward , -crossvec * bside);
-                                UpdateEntity.OnCrash(BeingUpdateEntity);
-                                BeingUpdateEntity.OnCrash(UpdateEntity);
+
                             }
                         }
-                        UpdateEntity.PhysicProperty.UpdatePosition(); 
-
+                        UpdateEntity.PhysicProperty.UpdatePosition();
                     }
+
+                    //map bfs vision
+                    TerrainChunk tc = GameData.MapChunks[0];
+                    Point bfsStart = tc.GetBlockPosition(MainPlayer.ControlEntity.PhysicProperty.CrashBox.Center);
+                    List<Entity> SightRange = MainPlayer.ControlEntity.GetSightRangeEntity();
+                    List<Point> Visited = [bfsStart];
+                    foreach (var item in Visited)
+                    {
+                        for (int x = -1; x <= 1; x+=2)
+                        {
+                            for (int y = -1; y <= 1; y+=2)
+                            {
+                                if (item.X + x < 0 || item.X + x >= tc.ChunkSize.X || item.Y + y < 0 || item.Y + y >= tc.ChunkSize.Y)
+                                {
+                                    continue;
+                                }
+                                else
+                                {
+                                    if (new Vector2(item.X - x , item.Y - y).Length() > MainPlayer.ViewRange)
+                                    {
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        Point next = new Point(item.X + x, item.Y + y);
+                                        if (!Visited.Contains(next))
+                                        {
+                                            Visited.Add(next);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+
                     
                     foreach (var item in LoadRangeEntity)
                     {
@@ -410,6 +423,8 @@ namespace DotAge.Core.Control
         public Func<int> GetGameTime;  
         public Func<MessageEntity , TextSprite> AddMessageEntity;
         public Func<RectF, List<BaseIndex>> GetRangeIndex;
+        public Func<Camera2D, bool> SetMainCamera;
+        public Func<Camera2D> GetMainCamera;
 
         public bool Initialize(Engine engine)
         {
@@ -443,6 +458,22 @@ namespace DotAge.Core.Control
             GetRangeIndex = (range) =>
             {
                 return engine.GetRangeIndex(range);
+            };
+            SetMainCamera = (cam) =>
+            {
+                if (cam != null)
+                {
+                    Graphic.ViewCamera = cam;
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            };
+            GetMainCamera = () =>
+            {
+                return Graphic.ViewCamera;
             };
             return true;
         }

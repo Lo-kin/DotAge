@@ -19,6 +19,7 @@ namespace DotAge.Core.View
 {
     public class Graphic : Game
     {
+        public static int FPS = 100;
         private GraphicsDeviceManager _graphics;
         public static Camera2D ViewCamera = new Camera2D();
         private SpriteBatch DynamicSprite;
@@ -30,6 +31,8 @@ namespace DotAge.Core.View
         public Graphic()
         {
             _graphics = new GraphicsDeviceManager(this);
+            IsFixedTimeStep = true;
+            TargetElapsedTime = TimeSpan.FromSeconds(1.0d / (double)FPS);
             Content.RootDirectory = "Content";
             
             IsMouseVisible = true;
@@ -176,6 +179,16 @@ namespace DotAge.Core.View
             if (RenderProperty is TextureRenderProperty)
             {
                 (RenderProperty as TextureRenderProperty).Size = size;
+                return true;
+            }
+            return false;
+        }
+
+        public virtual bool UpdateSize(int size)
+        {
+            if (RenderProperty is TextRenderProperty)
+            {
+                (RenderProperty as TextRenderProperty).Size = size;
                 return true;
             }
             return false;
@@ -332,25 +345,21 @@ namespace DotAge.Core.View
 
         public int LoadEngineTick(int Tick)
         {
-            int Duration = 60 * Tick;
+            int Duration = Graphic.FPS * Tick;
             LerpDurationFrames = Duration;
             ResetLerp();
             return Duration;
         }
 
-        public bool InitLerp(TextureRenderProperty Start , TextureRenderProperty End , int Ticks)
+        public bool InitLerp()
         {
-            if (Start == null || End == null || Ticks <= 0)
-            {
-                return false;
-            }
-            StartSprite = Start;
-            EndSprite = End;
-            LoadEngineTick(Ticks);
+            StartSprite = new TextureRenderProperty();
+            EndSprite = new TextureRenderProperty();
+            LoadEngineTick(Engine.GameTick);
             return true;
         }
 
-        public bool PushPostion(Vector2 position )
+        public override bool UpdatePosition(Vector2 position)
         {
             StartSprite.Position = EndSprite.Position;
             EndSprite.Position = position;
@@ -358,7 +367,7 @@ namespace DotAge.Core.View
             return true;
         }
 
-        public bool PushSize(Vector2 size )
+        public override bool UpdateSize(Vector2 size)
         {
             StartSprite.Size = EndSprite.Size;
             EndSprite.Size = size;
@@ -417,12 +426,7 @@ namespace DotAge.Core.View
 
         public LerpSprite()
         {
-
-        }
-
-        public LerpSprite(TextureRenderProperty startSprite, TextureRenderProperty endSprite , int Ticks)
-        {
-            var _ = InitLerp(startSprite, endSprite , Ticks) ? RenderProperty.IsChanged = true : RenderProperty.IsChanged = false;
+            var _ = InitLerp() ? RenderProperty.IsChanged = true : RenderProperty.IsChanged = false;
         }
 
         public override bool Draw(SpriteBatch spriteBatch)

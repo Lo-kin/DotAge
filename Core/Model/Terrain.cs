@@ -10,11 +10,21 @@ namespace DotAge.Core.Model
 {
     public class TerrainChunk
     {
+        public Vector2 Position { get; set; } = Vector2.Zero;
         public Point ChunkSize = new Point(32, 32);
+        public RectF ChunkRect 
+        {
+            get
+            {
+                return new RectF(Position, ChunkSize.ToVector2() * GameSetting.TerrBlockSize);
+            }
+        }
         public List<Terrain> Terrains { get; set; } = new List<Terrain>(); 
         public Terrain[,] TerrainMap = new Terrain[0,0];
-        public TerrainChunk()
+        
+        public TerrainChunk(Vector2 position)
         {
+            Position = position;
             TerrainMap = new Terrain[ChunkSize.X, ChunkSize.Y];
         }
 
@@ -66,14 +76,20 @@ namespace DotAge.Core.Model
             return true; // Successfully removed
         }
 
+        public Point GetBlockPosition(Vector2 worldposition)
+        {
+            return new Point((int)((worldposition.X - Position.X) / GameSetting.TerrBlockSize.X), (int)((worldposition.Y - Position.Y) / GameSetting.TerrBlockSize.Y));
+        }
     }
 
     public class Terrain : IRenderEntity , IPhysicEntity
     {
         public RenderEntity RenderProperty { get; set; } = new RenderEntity();
-        public PhysicBase PhysicProperty { get; set; } = new LocationEntity();
+        public PhysicBase PhysicProperty { get; set; } = new PhysicEntity();
+        public List<IPhysicEntity> StackEntity { get; set; } = [];
         public ZoneEntity ZoneEntity { get; set; } = new ZoneEntity(null , Control.TwoStatus.Active);
         public bool IsCrossable { get; set; } = false;
+
         public Terrain()
         {
             ZoneEntity = new ZoneEntity(PhysicProperty, Control.TwoStatus.Active);
@@ -95,10 +111,9 @@ namespace DotAge.Core.Model
             RenderProperty.UpdatePosition(PhysicProperty.Position);
         }
 
-        public void Crash(int _EntityID)
+        public void OnCrash(IPhysicEntity entity)
         {
-            // This method can be overridden by derived classes to handle crash events.
-            // Currently, it does nothing.
+
         }
 
         public void Update()
@@ -156,9 +171,11 @@ namespace DotAge.Core.Model
     {
         public Water()
         {
+            RenderProperty.BlockVision = true;
             RenderProperty.LoadTexture("Block_White");
             SetCrossable(false);
             UpdateRender();
+
         }
     }
 }

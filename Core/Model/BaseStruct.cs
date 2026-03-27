@@ -279,43 +279,6 @@ namespace DotAge.Core.Model
             return MathTool.VectorDirect(BeingCheckLocation.Center - CheckLoacation.Center);
         }
 
-        public static Vector2 CrashSide(PhysicBase CheckLoacation , PhysicBase BeingCheckLocation)
-        {
-            var realDistance = MathTool.AbsVector(CheckLoacation.CrashBox.Center - BeingCheckLocation.CrashBox.Center) - (CheckLoacation.Size / 2) - (BeingCheckLocation.Size / 2);
-            var direct = new Vector2(MathF.Sign(realDistance.X), MathF.Sign(realDistance.Y));
-            if (IsContain(CheckLoacation.CrashBox , BeingCheckLocation.CrashBox))
-            {
-                return direct;
-            }
-            else
-            {
-                if (IsContain(CheckLoacation.WishRange, BeingCheckLocation.WishRange))
-                {
-                    Vector2 twoDistance = Distance(CheckLoacation.CrashBox, BeingCheckLocation.CrashBox);
-                    Vector2 wishmix = CheckLoacation.WishForward - BeingCheckLocation.WishForward;
-                    Vector2 twoWish = new Vector2(MathF.Abs(wishmix.X), MathF.Abs(wishmix.Y));
-                    Vector2 distanceArg = twoDistance + twoWish;
-                    if (distanceArg.X < distanceArg.Y)
-                    {
-                        return new Vector2(0, 1) * direct;
-                    }
-                    else if (distanceArg.X > distanceArg.Y)
-                    {
-                        return new Vector2(1, 0) * direct;
-                    }
-                    else
-                    {
-                        return new Vector2(1, 1) * direct;
-                    }
-                 }
-                else
-                {
-                    return Vector2.Zero;
-                }
-            }
-            return Vector2.Zero;
-        }
-
         public static Vector2 Distance(RectF CheckRect , RectF BeingCheckRect)
         {
             return new Vector2(MathF.Min(MathF.Abs(CheckRect.Left - BeingCheckRect.Right), MathF.Abs(CheckRect.Right - BeingCheckRect.Left)) , MathF.Min(MathF.Abs(CheckRect.Top - BeingCheckRect.Bottom) , MathF.Abs(CheckRect.Bottom - BeingCheckRect.Top)));
@@ -345,6 +308,16 @@ namespace DotAge.Core.Model
         {
             bool stat = false;
             if (Right > rect2.Left && Left < rect2.Right && Bottom > rect2.Top && Top < rect2.Bottom)
+            {
+                stat = true;
+            }
+            return stat;
+        }
+
+        public bool Contains(Vector2 point)
+        {
+            bool stat = false;
+            if (point.X > Left && point.X < Right && point.Y > Top && point.Y < Bottom)
             {
                 stat = true;
             }

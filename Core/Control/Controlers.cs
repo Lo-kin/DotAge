@@ -22,7 +22,7 @@ namespace DotAge.Core.Control
         public static Dictionary<MouseButton , TwoStatus> ChangeMouseStat = new Dictionary<MouseButton, TwoStatus>();
         public static Dictionary<Keys , TwoStatus> ChangeKeyStat = new Dictionary<Keys, TwoStatus>();
 
-        public static PhysicBase MouseEntity = new LocationEntity()
+        public static PhysicBase MouseEntity = new PhysicEntity()
         {
             Position = Vector2.Zero,
             Size = new Vector2(1, 1),

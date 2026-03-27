@@ -12,9 +12,10 @@ namespace DotAge.Core.Model
         public Point IndexPosition { get; set; } = new Point(0, 0);
         public Vector2 IndexSize { get; set; } = new Vector2(1024, 1024);
         public RectF IndexRange { get {return new RectF(IndexPosition.ToVector2() * IndexSize, IndexSize); } }
+        public List<TerrainChunk> ChunkIndex { get; set; } = new List<TerrainChunk>();
         public List<Entity> EntityIndex { get; set; } = new List<Entity>();
         public List<IPhysicEntity> CrashIndex { get; set; } = new List<IPhysicEntity>();
-        public List<ILocation> CrashBoxIndex { get; set; } = new List<ILocation>();
+
         public BaseIndex(Point indexPosition)
         {
             IndexPosition = indexPosition;

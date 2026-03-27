@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -12,11 +13,11 @@ using Microsoft.Xna.Framework;
 
 namespace DotAge.Core.Model
 {
-    public interface IIndexable
+    public interface IndexEntity
     {
         public List<BaseIndex> BelongIndex { get; set; }
 
-        public bool UpdateBelongIndex(RectF CrashBox)
+        public virtual bool UpdateBelongIndex(RectF CrashBox)
         {
             foreach (var index in BelongIndex.ToArray())
             {
@@ -28,7 +29,7 @@ namespace DotAge.Core.Model
             return true;
         }
 
-        public bool RegisterIndex(BaseIndex index)
+        public virtual bool RegisterIndex(BaseIndex index)
         {
             if (index != null)
             {
@@ -38,7 +39,7 @@ namespace DotAge.Core.Model
             return false;
         }
 
-        public bool UnbindAllIndex()
+        public virtual bool UnbindAllIndex()
         {
             foreach (var index in BelongIndex.ToArray())
             {
@@ -49,7 +50,7 @@ namespace DotAge.Core.Model
             return true;
         }
 
-        public bool UnregisterIndex(BaseIndex index)
+        public virtual bool UnregisterIndex(BaseIndex index)
         {
             if (index != null)
             {
@@ -58,12 +59,12 @@ namespace DotAge.Core.Model
             return false;
         }
 
-        public List<Entity> GetRangeEntity()
+        public virtual List<Entity> GetRangeEntity()
         {
             return [.. BelongIndex.SelectMany(index => index.EntityIndex).Distinct()];
         }
 
-        public List<IPhysicEntity> GetRangeCrashBox()
+        public virtual List<IPhysicEntity> GetRangeCrashBox()
         {
             return [.. BelongIndex.SelectMany(index => index.CrashIndex).Distinct()];
         }
@@ -71,9 +72,26 @@ namespace DotAge.Core.Model
 
     public interface IPhysicEntity
     {
-        PhysicBase PhysicProperty { get; set; }
+        public PhysicBase PhysicProperty { get; set; }
+        public List<IPhysicEntity> StackEntity { get; set; }
 
-        public bool OnCrash(IPhysicEntity physicEntity)
+        public bool UpdateStackEntity()
+        {
+            for (int i = 0; i < StackEntity.Count; i++)
+            {
+                if (i >= StackEntity.Count)
+                {
+                    break;
+                }
+                if (StackEntity[i].PhysicProperty.CrashBox.Contains(PhysicProperty.CrashBox) == false)
+                {
+                    StackEntity.RemoveAt(i);
+                }
+            }
+            return true;
+        }
+
+        public bool OnCrash(PhysicEntity physicEntity)
         {
             return false;
         }
@@ -85,18 +103,15 @@ namespace DotAge.Core.Model
         RenderEntity RenderProperty { get; set; }
         public virtual bool UpdateRender() => true;
     }
+
     public interface IGameEntity
     {
         GameEntity GameProperty { get; set; }
         public bool IsAlive() => GameProperty.IsAlive;
     }
 
-    class AbstructPhysicEntity : IPhysicEntity
-    {
-        public PhysicBase PhysicProperty { get; set; }
-    }
 
-    public class Entity : IPhysicEntity, IRenderEntity, IGameEntity , IIndexable
+    public class Entity : IPhysicEntity, IRenderEntity, IGameEntity , IndexEntity
     {
         public int ID = -1;
         public EngineAccessor EngineAccess = null;
@@ -105,7 +120,8 @@ namespace DotAge.Core.Model
         public PhysicBase PhysicProperty { get; set; } = new PhysicEntity();
         public RenderEntity RenderProperty { get; set; } = new RenderEntity();
         public GameEntity GameProperty { get; set; } = new GameEntity();
-        public List<BaseIndex> BelongIndex { get; set; } = new List<BaseIndex>();
+        public List<IPhysicEntity> StackEntity { get; set; } = [];
+        public List<BaseIndex> BelongIndex { get; set; } = [];
 
         public event Action OnUpdate;
 
@@ -114,8 +130,9 @@ namespace DotAge.Core.Model
 
         public Entity(EngineAccessor accessor)
         {
+            
             this.EngineAccess = accessor;
-
+            RenderProperty.SetToLerp();
             RenderProperty.LoadTexture("MissingTexture");
             OnUpdate += () => 
             {
@@ -125,6 +142,7 @@ namespace DotAge.Core.Model
                     RenderProperty.UpdateSize(PhysicProperty.Size);
                 }
                 UpdateBelongIndex();
+                UpdateStackEntity();
             };
             PhysicProperty.OnCrashEvent += (pb) => 
             {
@@ -142,6 +160,22 @@ namespace DotAge.Core.Model
             if (OnUpdate != null)
             {
                 OnUpdate();
+            }
+            return true;
+        }
+
+        public bool UpdateStackEntity()
+        {
+            for (int i = 0; i < StackEntity.Count; i++)
+            {
+                if (i >= StackEntity.Count)
+                {
+                    break;
+                }
+                if (StackEntity[i].PhysicProperty.CrashBox.Contains(this.PhysicProperty.CrashBox) == false)
+                {
+                    StackEntity.RemoveAt(i);
+                }
             }
             return true;
         }
@@ -199,7 +233,8 @@ namespace DotAge.Core.Model
 
         public virtual void OnCrash(IPhysicEntity BeingCrashedEntity)
         {
-
+            StackEntity.Add(BeingCrashedEntity);
+            
         }
 
         public virtual ItemInformation? OnClick()
@@ -280,6 +315,11 @@ namespace DotAge.Core.Model
         {
             return [.. BelongIndex.SelectMany(index => index.CrashIndex).Distinct()];
         }
+
+        public List<Entity> GetSightRangeEntity()
+        {
+            return GetRangeEntity().Where(entity => (entity.PhysicProperty.Position - PhysicProperty.Position).Length() <= GameProperty.SightRange).ToList();
+        }
     }
 
     public class Creature : Entity
@@ -306,9 +346,7 @@ namespace DotAge.Core.Model
     {
         public Soildre(EngineAccessor accessor) : base(accessor)
         {
-            RenderProperty = new LerpRenderEntity();
             RenderProperty.LoadTexture("TV_Happy");
-            
         }
 
         public override bool Update()
@@ -317,13 +355,13 @@ namespace DotAge.Core.Model
 
             if (PhysicProperty.IsMoving == true)
             {
-                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(38, 32));
-                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(26, 32));
+                RenderProperty.UpdateSize(new Vector2(38, 32));
+                RenderProperty.UpdateSize(new Vector2(26, 32));
             }
             else
             {
-                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(32, 32));
-                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(32, 32));
+                RenderProperty.UpdateSize(new Vector2(32, 32));
+                RenderProperty.UpdateSize(new Vector2(32, 32));
             }
             return true;
         }
@@ -563,11 +601,9 @@ namespace DotAge.Core.Model
 
         public Door(EngineAccessor accessor) : base(accessor)
         {
-            RenderProperty = new LerpRenderEntity();
-            (RenderProperty as LerpRenderEntity).LoadAsLerp.AutoLoop = false;
+            (RenderProperty.Sprite as LerpSprite).AutoLoop = false;
             IsRenderFollowPhysic = false;
             RenderProperty.LoadTexture("MissingTexture");
-            (RenderProperty as LerpRenderEntity).LoadAsLerp.InitLerp(new TextureRenderProperty() , new TextureRenderProperty(), 1);
             RenderProperty.UpdateSize(new Vector2(0, 32));
             RenderProperty.UpdateSize(new Vector2(32, 64));
             
@@ -584,12 +620,12 @@ namespace DotAge.Core.Model
             if (IsOpen == true)
             {
                 PhysicProperty.Size = new Vector2(0 , 0);
-                (RenderProperty as LerpRenderEntity).LoadAsLerp.ReverseLerp();
+                (RenderProperty.Sprite as LerpSprite).ReverseLerp();
             }
             else
             {
                 PhysicProperty.Size = new Vector2(32, 64);
-                (RenderProperty as LerpRenderEntity).LoadAsLerp.ReverseLerp(); 
+                (RenderProperty.Sprite as LerpSprite).ReverseLerp(); 
             }
             return true;
         }

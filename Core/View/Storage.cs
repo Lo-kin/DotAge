@@ -22,7 +22,7 @@ namespace DotAge.Core.View
 
         public List<ZoneEntity> ZoneEntities = new List<ZoneEntity>();
         public EntityControler CurrentEntityControler = null;
-        private List<TerrainChunk> MapChunks = new List<TerrainChunk>();
+        public List<TerrainChunk> MapChunks = new List<TerrainChunk>();
 
         public Player MainPlayer = new Player();
         private List<Entity> Entities = new List<Entity>();
@@ -36,6 +36,20 @@ namespace DotAge.Core.View
         static GameData()
         {
 
+        }
+        
+        public bool SetMainPlayer(Player player)
+        {
+            if (player == null)
+            {
+                return false;
+            }
+            else
+            {
+                MainPlayer = player;
+                AddControler(player.Controler);
+                return true;
+            }
         }
 
         public bool AddControler(EntityControler _controler)
@@ -194,17 +208,6 @@ namespace DotAge.Core.View
             GameIndex.GetRangeIndex(position, range);
             return null;
         }
-
-        public List<ILocation> GetRangeCrashBox(RectF WishRange)
-        {
-            List<ILocation> result = new List<ILocation>();
-            var indexs = GameIndex.RectangleGetIndex(WishRange);
-            foreach (var index in indexs)
-            {
-                result.AddRange(index.CrashBoxIndex);
-            }
-            return result;
-        }
     }
 
     public class GameIndex
@@ -229,7 +232,7 @@ namespace DotAge.Core.View
                         break;
                     }
                     var index = entity.BelongIndex[i];
-                    if (index.CheckEntity(entity) == false)
+                    if (index.CheckEntity(entity) == false && entity.BelongIndex.Count > 1)
                     {
                         index.EntityIndex.Remove(entity);
                         entity.BelongIndex.Remove(index);
@@ -343,16 +346,6 @@ namespace DotAge.Core.View
                 BaseIndex index = CheckVaild(Position);
                 index.CrashIndex.Add(Crashbox);
                 
-            }
-            return true;
-        }
-
-        public bool SetCrashBox(Location Crashbox)
-        {
-            foreach (Point Position in GetRangePoints(Crashbox.Position, Crashbox.Size))
-            { 
-                BaseIndex index = CheckVaild(Position);
-                index.CrashBoxIndex.Add(Crashbox);
             }
             return true;
         }

@@ -91,7 +91,7 @@ namespace DotAge.Core.Model
         public int SkillPoint = 0;
         public int PierceCount = 1;
         public int Damage = 9;
-        public int Sight = 100;
+        public int SightRange = 10;//unit block
         public List<IRenderEntity> SeekedEntitites = new List<IRenderEntity>();
         public string GetProductCount
         {
@@ -181,80 +181,49 @@ namespace DotAge.Core.Model
         }
     }
 
-    public class LerpRenderEntity : RenderEntity
-    {
-        public LerpSprite LoadAsLerp
-        {
-            get
-            {
-                if (Sprite is LerpSprite)
-                {
-                    return Sprite as LerpSprite;
-                }
-                else
-                {
-                    return null;
-                }
-            }
-            set
-            {
-                Sprite = value;
-            }
-        }
-
-        public LerpRenderEntity() : base()
-        {
-            Sprite = new LerpSprite(new TextureRenderProperty(), new TextureRenderProperty(), 1);//per 1 tick do lerp
-            Sprite.RenderProperty.Position = Vector2.Zero;
-            (Sprite.RenderProperty as TextureRenderProperty).Size = new Vector2(32, 32);
-        }
-
-        public override bool UpdatePosition(Vector2 Position)
-        {
-            LoadAsLerp.PushPostion(Position);
-            return true;
-        }
-
-        public override bool UpdateSize(Vector2 Size)
-        {
-            LoadAsLerp.PushSize(Size);
-            return true;
-        }
-
-        public bool ReverseLerp()
-        {
-            LoadAsLerp.ReverseLerp();
-            return true;
-        }
-
-        public override bool LoadTexture(string asssteName)
-        {
-            (LoadAsLerp.RenderProperty as TextureRenderProperty).Region = TextureManager.GetTextureRegionByName(asssteName);
-            return true;
-        }
-    }
-
     public class RenderEntity
     {
         public Sprite Sprite = new TextureSprite();
+        public bool BlockVision = false;
 
         public RenderEntity()
         {
             var sprite = new TextureSprite();//per 1 tick do lerp
-            sprite.RenderProperty.Position = Vector2.Zero;
-            (sprite.RenderProperty as TextureRenderProperty).Size = new Vector2(32, 32);
+            sprite.UpdatePosition (Vector2.Zero);
+            sprite.UpdateSize(new Vector2(32, 32));
             Sprite = sprite;
+        }
+
+        public bool SetToLerp()
+        {
+            var newsprite = new LerpSprite();
+            newsprite.RenderProperty = Sprite.RenderProperty;
+            return true;
+        }
+
+        public bool SetToTexture()
+        {
+            var newsprite = new TextureSprite();
+            newsprite.RenderProperty = Sprite.RenderProperty;
+            return true;
+        }
+
+        public bool SetToText()
+        {
+            var newsprite = new TextSprite();
+            newsprite.RenderProperty = Sprite.RenderProperty;
+            return true;
         }
 
         public virtual bool UpdatePosition(Vector2 Position)
         {
-            Sprite.RenderProperty.Position = Position;
+            Sprite.UpdatePosition(Position);
             return true;
         }
 
         public virtual bool UpdateSize(Vector2 Size)
         {
-            (Sprite.RenderProperty as TextureRenderProperty).Size = Size;
+            Sprite.UpdateSize(Size);
             return true;
         }
 
@@ -266,7 +235,6 @@ namespace DotAge.Core.Model
         }
         public bool RemoveTexture(int Index)
         {
-
             return true;
         }
     }
@@ -312,13 +280,6 @@ namespace DotAge.Core.Model
         public static Vector2 Crash()
         {
             return new Vector2();
-        }
-    }
-
-    public class LocationEntity : PhysicBase
-    {
-        public LocationEntity()
-        {
         }
     }
 
@@ -394,11 +355,6 @@ namespace DotAge.Core.Model
         }
     }
 
-    class BaseStorage
-    {
-
-    }
-
     public class ZoneEntity
     {
         public ILocation TrigLoacation;
@@ -472,7 +428,7 @@ namespace DotAge.Core.Model
 
     public class MessageEntity
     {
+
         public ItemInformation MessageItem = ItemInformation.NullItem;
-        public string Message { get; set; } = "default";
     }
 }
