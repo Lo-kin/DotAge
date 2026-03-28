@@ -3,20 +3,12 @@ using DotAge.Core.Model.Delegates;
 using DotAge.Core.Model.Dialogue;
 using DotAge.Core.Tools;
 using DotAge.Core.View;
-using Microsoft.VisualBasic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.ComponentModel;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Net.NetworkInformation;
-using System.Reflection;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -83,11 +75,11 @@ namespace DotAge.Core.Control
             TextureManager.LoadedTextures["Character"].LoadName("Blocker", new Point(2, 9));
 
             TerrainChunk tc = new TerrainChunk();
-            for (int y = 0; y < 50; y++)
+            for (int y = 0; y < 99; y++)
             {
-                for (int x = 0; x < 50; x++)
+                for (int x = 0; x < 99; x++)
                 {
-                    if ((x ==3 || x == 23 || y == 4 || y == 14) && !(x == 3 &&( y == 4 || y == 5)))
+                    if (x == 0 || y == 0 || x == 98 || y == 98 )
                     {
                         Water ground = new Water()
                         {
@@ -95,6 +87,7 @@ namespace DotAge.Core.Control
                             {
                                 Position = new Vector2(x * 32, y * 32),
                                 Size = new Vector2(32, 32),
+                                IsSoild = true,
                             },
                         };
                         ground.UpdateRender();
@@ -118,22 +111,23 @@ namespace DotAge.Core.Control
             }
             AddTerrainChunk(tc);
 
-            Soildre item1 = (Soildre)CreateEntity(new Soildre(CurrentEngineAccessor)
+            GameData.MainPlayer.LoadEntity((Soildre)CreateEntity(new Soildre(CurrentEngineAccessor)
             {
                 PhysicProperty = new PhysicEntity()
                 {
-                    SpeedLength = 0.5f,
-                    Position = new Vector2(640, 320),
+                    SpeedLength = 0.1f,
+                    Position = new Vector2(45 * 32 + 60, 45 * 32),
                     Size = new Vector2(32, 32),
+                    IsSoild = true,
                     PathNodes = new Path()
                     {
                         Cycle = false,
                         ForceRay = new Vector2(0, 0)
                     }
                 },
-            });
+            }));
 
-            EntityControler entityControler = new(item1);
+            EntityControler entityControler = GameData.MainPlayer.Controler;
             entityControler.EngineAccess = CurrentEngineAccessor;
             GameData.AddControler(entityControler);
 
@@ -142,36 +136,26 @@ namespace DotAge.Core.Control
             });
             door.PhysicProperty.Position = new Vector2(32 * 3, 32 * 4);
             door.RenderProperty.UpdatePosition(door.PhysicProperty.Position);
-            door.RenderProperty.UpdatePosition(door.PhysicProperty.Position);
-            entityControler.RegisterKey(new ControlerFunc()
-            {
-                BindKey = Keys.E,
-                TriggerStat = TwoStatus.ActiveToFreeze,
-                ControlerFuncDelegate = (ClickStat, ClickPos) => {
-                    door.Use();
-                    return ItemInformation.NullItem;
-                },
-                ControlerFuncescription = "opendoor"
-            });
+            
+
 
             ZoneEntity _moveLeft = new ZoneEntity(Controlers.MouseEntity, TwoStatus.Any)
             {
                 Description = "Screen Move To Left",
-                TriggerZone = new Margin(0, 0, GameSetting.ScreenWidth - 100, 0).ToRectF(),
+                TriggerLoacation = new Location(new Margin(0, 0, GameSetting.ScreenWidth - 100, 0).ToRectF()),
             };
             _moveLeft.BindDelegate((p) => { Graphic.ViewCamera.Move(new Vector2(1, 0)); return true; });
             ZoneEntity _moveRight = new ZoneEntity(Controlers.MouseEntity, TwoStatus.Any)
             {
                 Description = "Screen Move To Right",
 
-                TriggerZone = new Margin(GameSetting.ScreenWidth - 100, 0, 0, 0).ToRectF(),
+                TriggerLoacation = new Location(new Margin(GameSetting.ScreenWidth - 100, 0, 0, 0).ToRectF()),
             };
             _moveRight.BindDelegate((p) => { Graphic.ViewCamera.Move(new Vector2(-1, 0)); return true; });
             ZoneEntity _moveTop = new ZoneEntity(Controlers.MouseEntity, TwoStatus.Any)
             {
                 Description = "Screen Move To Top",
-
-                TriggerZone = new Margin(0, 0, 0, GameSetting.ScreenHeight - 100).ToRectF(),
+                TriggerLoacation = new Location(new Margin(0, 0, 0, GameSetting.ScreenHeight - 100).ToRectF()),
             };
             _moveTop.BindDelegate((p) => {
                 Graphic.ViewCamera.Move(new Vector2(0, 1)); return true;
@@ -179,8 +163,7 @@ namespace DotAge.Core.Control
             ZoneEntity _moveBottom = new ZoneEntity(Controlers.MouseEntity, TwoStatus.Any)
             {
                 Description = "Screen Move To Bottom",
-
-                TriggerZone = new Margin(0, GameSetting.ScreenHeight - 100, 0, 0).ToRectF(),
+                TriggerLoacation = new Location(new Margin(0, GameSetting.ScreenHeight - 100, 0, 0).ToRectF()),
             };
             _moveBottom.BindDelegate((p) => { Graphic.ViewCamera.Move(new Vector2(0, -1)); return true; });
             GameData.ZoneEntities.Add(_moveLeft);
@@ -190,7 +173,7 @@ namespace DotAge.Core.Control
 
             Scripts.Add(new Script(CurrentEngineAccessor));
 
-            GameData.MainPlayer.ControlEntity = item1;
+            
 
             StartTime = DateTime.Now;
             LastTickTime = DateTime.Now;
@@ -234,12 +217,17 @@ namespace DotAge.Core.Control
                     }
                     foreach (var item in GameData.ZoneEntities)
                     {
-                        item.Trigger();
+                        item.Invoke(Controlers.CurrentMousePosition.ToVector2());
                     }
 
-                    GameData.MainPlayer.ControlEntity.PhysicProperty.UpdateWish();
-                    GameData.GameIndex.UpdateIndex(GameData.MainPlayer.ControlEntity);
-                    List<Entity> LoadRangeEntity = GameData.MainPlayer.ControlEntity.GetRangeEntity();
+                    Entity Updator = GameData.MainPlayer.ControlEntity;
+                    Updator.PhysicProperty.UpdateWish();
+                    GameData.GameIndex.UpdateIndex(Updator);
+
+                    Graphic.ViewCamera.Position = MathTool.Floor((GameSetting.ScreenSize / 2) - Updator.RenderProperty.Sprite.BaseProperty.RenderBox.Center);
+
+                    List<Entity> LoadRangeEntity = Updator.GetRangeEntity();
+                    List<IRenderEntity> LoadRangeTerrain = Updator.GetRangeRender();
 
                     foreach (Entity item in LoadRangeEntity)
                     {
@@ -257,7 +245,7 @@ namespace DotAge.Core.Control
                         {
                             continue;
                         }
-                        List<IPhysicEntity> RangeCrash = UpdateEntity.GetRangeCrashBox();
+                        List<IPhysicEntity> RangeCrash = UpdateEntity.GetIndexRangeCrashBox();
                         for (int j = i + 1; j < RangeCrash.Count; j++)
                         {
                             if (j >= RangeCrash.Count || RangeCrash.Count <= 0)
@@ -270,23 +258,66 @@ namespace DotAge.Core.Control
                                 continue;
                             }
 
-                            if (RectF.IsContain(UpdateEntity.PhysicProperty.WishRange , BeingUpdateEntity.PhysicProperty.WishRange))
+                            if (RectF.IsContain(UpdateEntity.PhysicProperty.WishRange, BeingUpdateEntity.PhysicProperty.WishRange))
                             {
-                                var crosszone = RectF.CrossZone(UpdateEntity.PhysicProperty.WishRange , BeingUpdateEntity.PhysicProperty.CrashBox);
-                                var crossvec = crosszone.Size / 2;
-                                var oside = RectF.RectDirect(UpdateEntity.PhysicProperty.CrashBox , crosszone);
-                                var bside = RectF.RectDirect(BeingUpdateEntity.PhysicProperty.CrashBox , crosszone);
-                                
-                                UpdateEntity.PhysicProperty.WishForward = MathTool.Project(UpdateEntity.PhysicProperty.WishForward , -crossvec * oside);  
-                                BeingUpdateEntity.PhysicProperty.WishForward = MathTool.Project(BeingUpdateEntity.PhysicProperty.WishForward , -crossvec * bside);
-                                UpdateEntity.OnCrash(BeingUpdateEntity);
-                                BeingUpdateEntity.OnCrash(UpdateEntity);
+
+                                if (UpdateEntity.PhysicProperty.IsSoild && BeingUpdateEntity.PhysicProperty.IsSoild)
+                                {
+                                    RectF CrossZone = RectF.CrossZone(UpdateEntity.PhysicProperty.WishRange, BeingUpdateEntity.PhysicProperty.WishRange);
+                                    Vector2 CrossVec = CrossZone.Size;
+                                    float uLength = UpdateEntity.PhysicProperty.WishForward.Length();
+                                    float bLength = BeingUpdateEntity.PhysicProperty.WishForward.Length();
+                                    float rate = uLength / (uLength + bLength);
+                                    if (float.IsNaN(rate))
+                                    {
+                                        rate = 0.5f;
+                                    }
+                                    
+                                    Vector2 b_sign = MathTool.VectorSign(UpdateEntity.PhysicProperty.Position - BeingUpdateEntity.PhysicProperty.Position);
+                                    float XYFlag = MathF.Abs(UpdateEntity.PhysicProperty.Position.X + UpdateEntity.PhysicProperty.Size.X - BeingUpdateEntity.PhysicProperty.Position.X - BeingUpdateEntity.PhysicProperty.Size.Y) - MathF.Abs(UpdateEntity.PhysicProperty.Position.Y + UpdateEntity.PhysicProperty.Size.Y - BeingUpdateEntity.PhysicProperty.Position.Y - BeingUpdateEntity.PhysicProperty.Size.Y);
+                                    if (XYFlag > 0)
+                                    {
+                                        UpdateEntity.PhysicProperty.WishForward.X += (rate * b_sign.X * CrossVec.X);
+                                        BeingUpdateEntity.PhysicProperty.WishForward.X += ((1 - rate) * b_sign.X * CrossVec.X);
+                                    }
+                                    else if (XYFlag < 0) 
+                                    {
+                                        UpdateEntity.PhysicProperty.WishForward.Y += (rate * b_sign.Y * CrossVec.Y);
+                                        BeingUpdateEntity.PhysicProperty.WishForward.Y += ((1 - rate) * b_sign.Y * CrossVec.Y);
+                                    }
+                                    else
+                                    {
+                                        UpdateEntity.PhysicProperty.WishForward += (rate * b_sign * CrossVec);
+                                        BeingUpdateEntity.PhysicProperty.WishForward += ((1 - rate) * b_sign * CrossVec);
+                                    }
+
+                                }
+                                if (RectF.IsContain(UpdateEntity.PhysicProperty.WishDestination, BeingUpdateEntity.PhysicProperty.WishDestination))
+                                {
+                                    UpdateEntity.OnCrash(BeingUpdateEntity);
+                                    BeingUpdateEntity.OnCrash(UpdateEntity);
+                                }
                             }
                         }
+                        if (UpdateEntity is Soildre)
+                        {
+                            CurrentGrapic.WishForce = UpdateEntity.PhysicProperty.WishForward;
+                        }
                         UpdateEntity.PhysicProperty.UpdatePosition(); 
-
                     }
-                    
+
+                    foreach (var item in LoadRangeTerrain)
+                    {
+                        if (MathF.Ceiling(RectF.DistanceToPoint(item.RenderProperty.Sprite.BaseProperty.RenderBox , Updator.RenderProperty.Sprite.BaseProperty.RenderBox.Center).Length()) > Updator.GameProperty.Sight)
+                        {
+                            item.RenderProperty.Sprite.BaseProperty.IsVisible = false;
+                        }
+                        else
+                        {
+                            item.RenderProperty.Sprite.BaseProperty.IsVisible = true;
+                        }
+                    }
+
                     foreach (var item in LoadRangeEntity)
                     {
                         item.Update();
@@ -389,8 +420,8 @@ namespace DotAge.Core.Control
         public TextSprite CreateMessage(MessageEntity messageEntity)
         {
             TextSprite sprite = new TextSprite();
-            sprite.RenderProperty.TintColor = Color.White;
-            (sprite.RenderProperty as TextRenderProperty).TextSource = messageEntity;
+            sprite.BaseProperty.TintColor = Color.White;
+            (sprite.BaseProperty as TextRenderProperty).TextSource = messageEntity;
             CurrentGrapic.RenderObjects.Add(sprite);
             return sprite;
         }
@@ -410,6 +441,7 @@ namespace DotAge.Core.Control
         public Func<int> GetGameTime;  
         public Func<MessageEntity , TextSprite> AddMessageEntity;
         public Func<RectF, List<BaseIndex>> GetRangeIndex;
+        public Func<RayF, float, List<IGameEntity>> GetLineIndex;
 
         public bool Initialize(Engine engine)
         {
@@ -443,6 +475,10 @@ namespace DotAge.Core.Control
             GetRangeIndex = (range) =>
             {
                 return engine.GetRangeIndex(range);
+            };
+            GetLineIndex = (line , length) =>
+            {
+                return engine.GameData.GetRayTrigger(line , length);
             };
             return true;
         }

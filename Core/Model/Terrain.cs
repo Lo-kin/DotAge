@@ -77,6 +77,7 @@ namespace DotAge.Core.Model
         public Terrain()
         {
             ZoneEntity = new ZoneEntity(PhysicProperty, Control.TwoStatus.Active);
+            PhysicProperty.IsSoild = true;
         }
 
         public void UpdatePosition(Vector2 _position)
@@ -156,6 +157,7 @@ namespace DotAge.Core.Model
     {
         public Water()
         {
+            PhysicProperty.IsSoild = true;
             RenderProperty.LoadTexture("Block_White");
             SetCrossable(false);
             UpdateRender();

@@ -44,7 +44,8 @@ namespace DotAge.Core.Control
                 BindKey = Keys.W,
                 TriggerStat = TwoStatus.Active,
                 ControlerFuncDelegate = (ClickStat, ClickPos) => {
-                    Move(-Vector2.UnitY); 
+                    Move(-Vector2.UnitY);
+                    ExcuteEntity.PhysicProperty.FaceForward = -Vector2.UnitY;
                     return ItemInformation.NullItem; 
                 },
                 ControlerFuncescription = "MoveUP"
@@ -54,14 +55,19 @@ namespace DotAge.Core.Control
                 BindKey = Keys.S,
                 TriggerStat = TwoStatus.Active,
                 ControlerFuncDelegate = (ClickStat, ClickPos) => {
-                    Move(Vector2.UnitY); return ItemInformation.NullItem; },
+                    Move(Vector2.UnitY);
+                    ExcuteEntity.PhysicProperty.FaceForward = Vector2.UnitY;
+                    return ItemInformation.NullItem; },
                 ControlerFuncescription = "MoveDOWN"
             };
             ControlerFunc _left = new()
             {
                 BindKey = Keys.A,
                 TriggerStat = TwoStatus.Active,
-                ControlerFuncDelegate = (ClickStat, ClickPos) => { Move(-Vector2.UnitX); return ItemInformation.NullItem; },
+                ControlerFuncDelegate = (ClickStat, ClickPos) => { 
+                    Move(-Vector2.UnitX);
+                    ExcuteEntity.PhysicProperty.FaceForward = -Vector2.UnitX;
+                    return ItemInformation.NullItem; },
                 ControlerFuncescription = "MoveLEFT"
             };
             ControlerFunc _right = new()
@@ -69,7 +75,9 @@ namespace DotAge.Core.Control
                 BindKey = Keys.D,
                 TriggerStat = TwoStatus.Active,
                 ControlerFuncDelegate = (ClickStat, ClickPos) => {
-                    Move(Vector2.UnitX); return ItemInformation.NullItem; },
+                    Move(Vector2.UnitX); 
+                    ExcuteEntity.PhysicProperty.FaceForward = Vector2.UnitX;
+                    return ItemInformation.NullItem; },
                 ControlerFuncescription = "MoveRIGHT"
             };
             ControlerFunc _build = new()
@@ -144,6 +152,17 @@ namespace DotAge.Core.Control
                     return null;
                 }
             };
+
+            ControlerFunc _eUse = new()
+            {
+                BindKey = Keys.E,
+                TriggerStat = TwoStatus.ActiveToFreeze,
+                ControlerFuncDelegate = (ClickStat, ClickPos) => {
+                    ExcuteEntity.Use();
+                    return ItemInformation.NullItem;
+                },
+                ControlerFuncescription = "opendoor"
+            };
             ControlerFunc _leftmouse = new()
             {
                 BindMouseButton = MouseButton.Left,
@@ -173,6 +192,7 @@ namespace DotAge.Core.Control
             RegisterKey(_build);
             RegisterKey(_PskillUp);
             RegisterKey(_DskillUp);
+            RegisterKey(_eUse);
         }
 
         public bool RegisterKey(dynamic _controlerFunc)

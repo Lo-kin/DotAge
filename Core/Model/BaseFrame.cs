@@ -68,31 +68,49 @@ namespace DotAge.Core.Model
                 return new RectF(Position, Size);
             }
         }
-        public Location()
+        public Location(Vector2 position , Vector2 size)
         {
+            Position = position;
+            Size = size;
+        }
+
+        public Location(RectF rect)
+        {
+            Position = rect.Position;
+            Size = rect.Size;
         }
     }
 
     public class GameEntity
     {
+        public bool IsAlive { get { return Health > 0; } }
         public float LastHealth = 100f;
         public float Health = 100f;
         public float MaxHealth = 500f;
-        public Ray ShootingPostion { get; set; }
-        public string Name { get; set; }
-        public bool Visibility { get; set; } = true;
+
         public List<Entity> KilledEntity = new List<Entity>();
         public Entity BeingKilledEntity = null;
-        public bool IsRenderFollowCrashbox { get; set; } = false;
-        public float Money = 0f;
-        public bool IsAlive { get { return Health > 0; } }
 
+        public Vector2 FaceForward = Vector2.UnitX;
+        public string Name { get; set; }
+        public bool Visibility { get; set; } = true;
+        public bool IsRenderFollowCrashbox { get; set; } = false;
+
+        public float Money = 0f;
         public Dictionary<Type, int> ProductCount = new Dictionary<Type, int>();
+
         public int SkillPoint = 0;
         public int PierceCount = 1;
         public int Damage = 9;
-        public int Sight = 100;
+
+        public int Sight = 300;
+        public float LoadEntityRange = 500f;
+        public float LoadChunkRange = 3f;
+        public float UseRange = 200f;
         public List<IRenderEntity> SeekedEntitites = new List<IRenderEntity>();
+
+        public ZoneEntity Trigger = new(new Location(Vector2.Zero , Vector2.Zero) , TwoStatus.Active);
+
         public string GetProductCount
         {
             get
@@ -104,6 +122,19 @@ namespace DotAge.Core.Model
         public GameEntity()
         {
 
+        }
+
+        public bool SetFaceForward(Vector2 _faceForward)
+        {
+            if (_faceForward == Vector2.Zero || float.IsNaN(_faceForward.X) || float.IsNaN(_faceForward.Y))
+            {
+                return false;
+            }
+            else
+            {
+                FaceForward = Vector2.Normalize(_faceForward);
+                return true;
+            }
         }
 
         public float SetHealth(float _health, Entity Source)
@@ -128,12 +159,6 @@ namespace DotAge.Core.Model
             return Health;
         }
 
-        public Ray ModifyShootingPosition(Ray _ray)
-        {
-            ShootingPostion = _ray;
-            return _ray;
-        }
-
         public float ModifyMoney(float _money)
         {
             Money += _money;
@@ -149,13 +174,13 @@ namespace DotAge.Core.Model
             else
             {
                 Money -= _price.Price;
-                if (ProductCount.ContainsKey(_product.GetType) == false)
+                if (ProductCount.ContainsKey(_product.GetType()) == false)
                 {
-                    ProductCount.Add(_product.GetType, 1);
+                    ProductCount.Add(_product.GetType(), 1);
                 }
                 else
                 {
-                    ProductCount[_product.GetType]++;
+                    ProductCount[_product.GetType()]++;
                 }
                 return true;
             }
@@ -163,19 +188,19 @@ namespace DotAge.Core.Model
 
         public bool Sale(Product _product, ProductValue _price)
         {
-            if (ProductCount.ContainsKey(_product.GetType) == false)
+            if (ProductCount.ContainsKey(_product.GetType()) == false)
             {
                 return false;
             }
             else
             {
 
-                if (ProductCount[_product.GetType] <= 0)
+                if (ProductCount[_product.GetType()] <= 0)
                 {
                     return false;
                 }
                 Money += _price.Price;
-                ProductCount[_product.GetType]--;
+                ProductCount[_product.GetType()]--;
                 return true;
             }
         }
@@ -205,8 +230,8 @@ namespace DotAge.Core.Model
         public LerpRenderEntity() : base()
         {
             Sprite = new LerpSprite(new TextureRenderProperty(), new TextureRenderProperty(), 1);//per 1 tick do lerp
-            Sprite.RenderProperty.Position = Vector2.Zero;
-            (Sprite.RenderProperty as TextureRenderProperty).Size = new Vector2(32, 32);
+            Sprite.BaseProperty.Position = Vector2.Zero;
+            (Sprite.BaseProperty as TextureRenderProperty).Size = new Vector2(32, 32);
         }
 
         public override bool UpdatePosition(Vector2 Position)
@@ -229,7 +254,7 @@ namespace DotAge.Core.Model
 
         public override bool LoadTexture(string asssteName)
         {
-            (LoadAsLerp.RenderProperty as TextureRenderProperty).Region = TextureManager.GetTextureRegionByName(asssteName);
+            (LoadAsLerp.BaseProperty as TextureRenderProperty).Region = TextureManager.GetTextureRegionByName(asssteName);
             return true;
         }
     }
@@ -241,27 +266,27 @@ namespace DotAge.Core.Model
         public RenderEntity()
         {
             var sprite = new TextureSprite();//per 1 tick do lerp
-            sprite.RenderProperty.Position = Vector2.Zero;
-            (sprite.RenderProperty as TextureRenderProperty).Size = new Vector2(32, 32);
+            sprite.BaseProperty.Position = Vector2.Zero;
+            (sprite.BaseProperty as TextureRenderProperty).Size = new Vector2(32, 32);
             Sprite = sprite;
         }
 
         public virtual bool UpdatePosition(Vector2 Position)
         {
-            Sprite.RenderProperty.Position = Position;
+            Sprite.BaseProperty.Position = Position;
             return true;
         }
 
         public virtual bool UpdateSize(Vector2 Size)
         {
-            (Sprite.RenderProperty as TextureRenderProperty).Size = Size;
+            (Sprite.BaseProperty as TextureRenderProperty).Size = Size;
             return true;
         }
 
 
         public virtual bool LoadTexture(string asssteName)
         {
-            (Sprite.RenderProperty as TextureRenderProperty).Region = TextureManager.GetTextureRegionByName(asssteName);
+            (Sprite.BaseProperty as TextureRenderProperty).Region = TextureManager.GetTextureRegionByName(asssteName);
             return true;
         }
         public bool RemoveTexture(int Index)
@@ -324,7 +349,9 @@ namespace DotAge.Core.Model
 
     public abstract class PhysicBase : ILocation
     {
-        public Vector2 Position { get ; set; } = Vector2.Zero;
+        public Vector2 LastPosition { get; set; } = Vector2.Zero;
+        public Vector2 _position = Vector2.Zero;
+        public Vector2 Position { get { return _position; } set {LastPosition = _position; _position = value; } }
         public Vector2 Size { get ; set; } = new Vector2(32,32);
         public RectF CrashBox
         {
@@ -333,8 +360,8 @@ namespace DotAge.Core.Model
                 return new RectF(Position, Size);
             }
         }
-        public Vector2 WishForward { get ; set; } = Vector2.Zero;
-        public float SpeedLength { get; set ; } = 1f;
+        public Vector2 WishForward = Vector2.Zero;
+        public float SpeedLength { get; set ; } = 0.1f;
         public Vector2 SpeedForward { get; set; } = Vector2.Zero;
         public RectF WishRange
         {
@@ -343,9 +370,29 @@ namespace DotAge.Core.Model
                 return RectF.ExpandRectangel(CrashBox, WishForward);
             }
         }
+        public RectF WishDestination
+        {
+            get
+            {
+                return new RectF(Position + WishForward, Size);
+            }
+        }
         public Action<IPhysicEntity> OnCrashEvent;
         public bool IsMoving { get; set; } = false;
         public bool IsSizeChanging { get; set; } = false;
+        public bool IsSoild { get; set; } = false;
+
+        public Vector2 _faceForward = Vector2.One;
+        public Vector2 FaceForward { 
+            get { return _faceForward; }
+            set 
+            { 
+                if (value != Vector2.Zero) 
+                {
+                    _faceForward = Vector2.Normalize(value); 
+                }
+            } 
+        }
 
         public virtual bool MoveForward(Vector2 _vec)
         {
@@ -376,7 +423,7 @@ namespace DotAge.Core.Model
 
         public virtual bool UpdateWish(Vector2 Fiction = default, int Tick = 10)
         {
-            WishForward += SpeedForward * SpeedLength * Tick;
+            WishForward += (SpeedForward * SpeedLength * Tick);
             return true;
         }
 
@@ -401,22 +448,21 @@ namespace DotAge.Core.Model
 
     public class ZoneEntity
     {
-        public ILocation TrigLoacation;
-        public bool IsFixedToMap = false;
-        public RectF TriggerZone = new RectF(0, 0, 0, 0);
-        public event Func<RectF, bool> TriggerDelegate = null;
+        public ILocation TriggerLoacation = new Location(Vector2.Zero , Vector2.Zero);
+        public bool IsFixedToWindow = false;
+        public event Func<Vector2, bool> TriggerDelegate = null;
         public string Description = "Default Zone Entity";
         public int InvokeCount = 0;
-        public Stator ZoneStator =new Stator();
-        public MessageEntity InformationSource = new();  
+        public Stator TriggerStator = new Stator();
+        public MessageEntity InformationSource = new();
 
-        public ZoneEntity(ILocation Loacation , TwoStatus TriggerState)
+        public ZoneEntity(ILocation Loacation, TwoStatus TriggerState)
         {
-            TrigLoacation = Loacation;
-            ZoneStator = new Stator(TriggerState);
+            TriggerLoacation = Loacation;
+            TriggerStator = new Stator(TriggerState);
         }
 
-        public bool BindDelegate(Func<RectF, bool> _delegate)
+        public bool BindDelegate(Func<Vector2, bool> _delegate)
         {
             if (_delegate == null)
             {
@@ -429,44 +475,66 @@ namespace DotAge.Core.Model
             }
         }
 
-        public bool CheckTrigger()
+        public bool CheckTrigger(Vector2 CheckPosition)
         {
             if (TriggerDelegate == null)
             {
                 return false;
             }
-            if (RectF.IsContain(TriggerZone , TrigLoacation.CrashBox))
+            TriggerStator.Update(RectF.IsContain(TriggerLoacation.CrashBox, CheckPosition));
+            if (TriggerStator.IsTriggered() == true)
             {
-                ZoneStator.Update(true);
-                if (ZoneStator.IsTriggered() == true)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return true;
             }
-            else 
+            else
             {
-                ZoneStator.Update(false);
                 return false;
             }
         }
 
-        public bool Trigger()
-        {   
-            if (CheckTrigger() == false)
+        public bool Invoke(Vector2 InvokePosition)
+        {
+            if (CheckTrigger(InvokePosition) == false)
             {
                 return false;
             }
             else
             {
-                TriggerDelegate.Invoke(RectF.CrossZone(TriggerZone, TrigLoacation.CrashBox));
+                TriggerDelegate.Invoke(InvokePosition);
                 InvokeCount++;
                 return true;
             }
+        }
 
+        public bool CheckTrigger(RectF CheckRect)
+        {
+            if (TriggerDelegate == null)
+            {
+                return false;
+            }
+            TriggerStator.Update(RectF.IsContain(TriggerLoacation.CrashBox, CheckRect));
+            if (TriggerStator.IsTriggered() == true)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public bool Invoke(RectF InvokeRect)
+        {
+            if (CheckTrigger(InvokeRect) == false)
+            {
+                return false;
+            }
+            else
+            {
+                TriggerDelegate.Invoke(TriggerLoacation.CrashBox.Center);
+                InvokeCount++;
+                return true;
+            }
         }
     }
 

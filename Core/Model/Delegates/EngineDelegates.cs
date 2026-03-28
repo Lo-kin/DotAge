@@ -15,7 +15,7 @@ namespace DotAge.Core.Model.Delegates
     public delegate bool StatArgDelegate<TwoStat, T2>(TwoStat InvokeStat, T2 arg2);
     public delegate bool StatDelegate<TwoStat>(TwoStat InvokeStat);
     public delegate ItemInformation? ItemInformationDelegate(TwoStatus ClickStat , Vector2 ClickPosition);
-    public delegate TRet? AnyDelegate<TVal , TRet>(TVal InvokeStat);
+    public delegate TRet AnyDelegate<TVal , TRet>(TVal InvokeStat);
 
     public class ControlerFunc
     {

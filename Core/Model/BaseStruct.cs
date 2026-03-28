@@ -162,16 +162,37 @@ namespace DotAge.Core.Model
 
     }
 
-    public struct Ray
+    public struct RayF
     {
         public Vector2 Position;
         public Vector2 Direct;
+
+        public RayF(Vector2 position, Vector2 direct)
+        {
+            Position = position;
+            Direct = Vector2.Normalize(direct);
+        }
+
+        public LineF GetLine(float length)
+        {
+            LineF retLine = new LineF();
+            retLine.Start = Position;
+            retLine.End = Position + (Direct * length);
+            return retLine;
+        }
+
+        public Vector2 GetEnd(float Length)
+        {
+            return Position + (Length * Direct);
+        }
     }
 
-    public struct Line
+    public struct LineF
     {
         public Vector2 Start;
         public Vector2 End;
+        public readonly Vector2 Line { get { return End - Start; } }
+
     }
 
     public struct RectF
@@ -319,6 +340,13 @@ namespace DotAge.Core.Model
         public static Vector2 Distance(RectF CheckRect , RectF BeingCheckRect)
         {
             return new Vector2(MathF.Min(MathF.Abs(CheckRect.Left - BeingCheckRect.Right), MathF.Abs(CheckRect.Right - BeingCheckRect.Left)) , MathF.Min(MathF.Abs(CheckRect.Top - BeingCheckRect.Bottom) , MathF.Abs(CheckRect.Bottom - BeingCheckRect.Top)));
+        }
+
+        public static Vector2 DistanceToPoint(RectF rect , Vector2 point)
+        {
+            float distX = MathF.Max(MathF.Abs(rect.Left - point.X), MathF.Abs(point.X - rect.Right));
+            float distY = MathF.Max(MathF.Abs(rect.Top - point.Y), MathF.Abs(point.Y - rect.Bottom));
+            return new Vector2(distX, distY);
         }
 
         public static bool IsContain(RectF rect1, Vector2 point)

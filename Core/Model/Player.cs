@@ -18,5 +18,16 @@ namespace DotAge.Core.Model
         {
 
         }
+
+        public bool LoadEntity(Entity entity)
+        {
+            if (entity == null)
+            {
+                return false;
+            }
+            ControlEntity = entity;
+            Controler = new(entity);
+            return true;
+        }
     }
 }

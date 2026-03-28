@@ -9,13 +9,6 @@ namespace DotAge.Core.Model.Economy
     public class Product
     {
         public string Name { get; set; } = "Default";
-        public Type GetType
-        { 
-            get
-            {
-                return this.GetType();
-            }
-        } 
         public float Count = 1f;
     }
 

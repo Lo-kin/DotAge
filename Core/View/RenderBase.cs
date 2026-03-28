@@ -100,6 +100,7 @@ namespace DotAge.Core.View
         public bool _isVisible = true;
         public bool _isStatic = false;
         public bool _isChanged = false;
+        public virtual RectF RenderBox { get { return new RectF(Position, Vector2.One); } }
         public Vector2 Position { get { return _position; } set { if (!_position.Equals(value)) _position = value; IsChanged = true; } }
         public Color TintColor { get { return _tintColor; } set { if (!_tintColor.Equals(value)) _tintColor = value; IsChanged = true; } }
         public float Rotation { get { return _rotation; } set { if (_rotation != value) _rotation = value; IsChanged = true; } }
@@ -132,6 +133,7 @@ namespace DotAge.Core.View
         public TextureRegion _region = null;
         public Vector2 _size = Vector2.Zero;
         public Vector2 _scale = Vector2.One;
+        public override RectF RenderBox { get { return new RectF(Position, Size); } }
         public TextureRegion Region { get { return _region; } set { if (_region != value) _region = value; IsChanged = true; } }
         public Vector2 Size { get { return _size; } set { if (!_size.Equals(value)) _size = value; IsChanged = true; } }
         public Vector2 Scale { get { return _scale; } set { if (!_scale.Equals(value)) _scale = value; IsChanged = true; } }
@@ -161,6 +163,7 @@ namespace DotAge.Core.View
         public SpriteFont _font = null;
         public int _size = 12;
         public Vector2 _scale = Vector2.One;
+        public override RectF RenderBox { get { return new RectF(Position, Font.MeasureString(Text.Message)); } }
         public MessageEntity Text { get { return TextSource; } set { if (TextSource != value) TextSource = value; IsChanged = true; } }
         public SpriteFont Font { get { return _font; } set { if (_font != value) _font = value; IsChanged = true; } }
         public int Size { get { return _size; } set { if (_size != value) _size = value; IsChanged = true; } }

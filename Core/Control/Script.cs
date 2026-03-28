@@ -18,81 +18,10 @@ namespace DotAge.Core.Control
         public Script(EngineAccessor _accessor)
         {
             Accessor = _accessor;
-            var item1 = new TickDelegate(Accessor)
+            foreach (var item in ScriptTest.GetTest(Accessor))
             {
-                TriggerTick = 0,
-                TotalRepeatCount = -1,
-                RepeatInterval = 1,
-                TickDelegateFunc = (engineAccessor) =>
-                {
-                    engineAccessor.AddEntity(new Zombie(Accessor)
-                    {
-                        PhysicProperty =
-                        {
-                            SpeedLength= 0.20f + (0.05f - (1 / ((CurrentTick / 500) + 20))),
-                            Position = new Vector2(200, 200),
-                            Size = new Vector2(32, 32),
-                        },
-                        GameProperty =
-                        {
-                            Health = (CurrentTick / 400) + 500,
-                        }
-                        
-                    });
-                    return true;
-                }
-            };
-            item1.TriggerCondition = () =>
-            {
-                if (Accessor.GetGameTime() % 2000 >= 1000)
-                {
-                    item1.RepeatInterval = 100;
-                }
-                else
-                {
-                    item1.RepeatInterval = 200;
-                }
-                if (Accessor.GetGameTime() == item1.NextTriggerTick)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            };
-            var item2 = new TickDelegate(Accessor)
-            {
-                TriggerTick = CurrentTick + 0,
-                TotalRepeatCount = -1,
-                RepeatInterval = 250,
-                TickDelegateFunc = (engineAccessor) =>
-                {
-                    engineAccessor.AddEntity(new GoldMine(Accessor)
-                    {
-                        PhysicProperty =
-                        {
-                            Position = new Vector2(Random.Shared.NextInt64(0 , 0), Accessor.GetGameTime() * 32 / 250),
-                            Size = new Vector2(32, 32),
-                        }
-                    });
-                    return true;
-                }
-            };
-            item2.TriggerCondition = () =>
-            {
-                if (Accessor.GetGameTime() % 2000 <= 1000 && Accessor.GetGameTime() == item2.NextTriggerTick)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            };
-
-            //AddTickDelegate(item1);
-            AddTickDelegate(item2);
+                AddTickDelegate(item);
+            }
         }
 
         public virtual void Update()
@@ -143,7 +72,6 @@ namespace DotAge.Core.Control
                     return false;
                 }
             };
-
         }
 
         public bool Invoke()
@@ -170,6 +98,127 @@ namespace DotAge.Core.Control
 
             }
             return stat;
+        }
+    }
+
+    public static class ScriptTest
+    {
+        public static List<TickDelegate> GetTest(EngineAccessor Accessor)
+        {
+            int CurrentTick = Accessor.GetGameTime();
+
+            var TC = new TargetCore(Accessor)
+            {
+                PhysicProperty =
+                {
+                    SpeedLength = 0f,
+                    Position = new Vector2(45 * 32, 45 * 32),
+                    Size = new Vector2(32, 32),
+                    IsSoild = false
+                },
+            };
+            Accessor.AddEntity(TC);
+            var item1 = new TickDelegate(Accessor)
+            {
+                TriggerTick = 0,
+                TotalRepeatCount = -1,
+                RepeatInterval = 1,
+                TickDelegateFunc = (engineAccessor) =>
+                {
+                    engineAccessor.AddEntity(new Zombie(Accessor)
+                    {
+                        PhysicProperty =
+                        {
+                            SpeedLength= 0.03f,
+                            Position = new Vector2(200, 200),
+                            Size = new Vector2(32, 32),
+                            IsSoild = true
+                        },
+                        GameProperty =
+                        {
+                            Health = (CurrentTick / 400) + 500,
+                        }
+
+                    });
+                    return true;
+                }
+            };
+            item1.TriggerCondition = () =>
+            {
+                if (Accessor.GetGameTime() % 2000 >= 1000)
+                {
+                    item1.RepeatInterval = 100;
+                }
+                else
+                {
+                    item1.RepeatInterval = 200;
+                }
+                if (Accessor.GetGameTime() == item1.NextTriggerTick)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            };
+            var item2 = new TickDelegate(Accessor)
+            {
+                TriggerTick = CurrentTick + 0,
+                TotalRepeatCount = -1,
+                RepeatInterval = 1000,
+                TickDelegateFunc = (engineAccessor) =>
+                {
+                    engineAccessor.AddEntity(new GoldMine(Accessor)
+                    {
+                        PhysicProperty =
+                        {
+                            Position = new Vector2(Random.Shared.NextInt64(0 , 0), Accessor.GetGameTime() * 32 / 250),
+                            Size = new Vector2(32, 32),
+                        }
+                    });
+                    return true;
+                }
+            };
+            item2.TriggerCondition = () =>
+            {
+                if (Accessor.GetGameTime() % 2000 <= 1000 && Accessor.GetGameTime() == item2.NextTriggerTick)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            };
+            var item3 = new TickDelegate(Accessor)
+            {
+                TriggerTick = 0,
+                TotalRepeatCount = -1,
+                RepeatInterval = 1,
+                TickDelegateFunc = (engineAccessor) =>
+                {
+                    if (TC.GameProperty.IsAlive == false)
+                    {
+                        item1.RepeatedCount = 0;
+                        item2.RepeatedCount = 0;
+                    }
+                    return true;
+                }
+            };
+            item3.TriggerCondition = () =>
+            {
+                if (TC.GameProperty.IsAlive == false && Accessor.GetGameTime() == item3.NextTriggerTick)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            };
+
+            return [item1, item2, item3];
         }
     }
 }

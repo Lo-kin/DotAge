@@ -5,6 +5,7 @@ using DotAge.Core.Model.Economy;
 using DotAge.Core.Model.Region;
 using DotAge.Core.Tools;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
@@ -27,6 +28,7 @@ namespace DotAge.Core.View
         public List<Sprite> RenderObjects = new List<Sprite>();
         public bool IsLoaded = false;
 
+
         public Graphic()
         {
             _graphics = new GraphicsDeviceManager(this);
@@ -37,13 +39,11 @@ namespace DotAge.Core.View
 
         protected override void Initialize()
         {
-            // TODO: Add your initialization logic here
             ViewCamera.View = Matrix.CreateTranslation(new Vector3(0, 0, 0));
             _graphics.PreferredBackBufferWidth = GameSetting.ScreenWidth;
             _graphics.PreferredBackBufferHeight = GameSetting.ScreenHeight;
             _graphics.ApplyChanges();
             base.Initialize();
-
         }
 
         protected override void LoadContent()
@@ -53,8 +53,8 @@ namespace DotAge.Core.View
 
             _font = Content.Load<SpriteFont>("Default");
             IsLoaded = true;
-            (DrawInfo.RenderProperty as TextRenderProperty).TextSource = CoreInfo;
-            (DrawInfo.RenderProperty as TextRenderProperty).Font = _font;
+            (DrawInfo.BaseProperty as TextRenderProperty).TextSource = CoreInfo;
+            (DrawInfo.BaseProperty as TextRenderProperty).Font = _font;
             // TODO: use this.Content to load your game content here
         }
         protected override void Update(GameTime gameTime)
@@ -64,6 +64,7 @@ namespace DotAge.Core.View
                 Exit();
             }
             // TODO: Add your update logic here
+
             base.Update(gameTime);
         }
 
@@ -77,9 +78,9 @@ namespace DotAge.Core.View
             {
                 foreach (var item in RenderObjects)
                 {
-                    if (item.RenderProperty.IsVisible == true)
+                    if (item.BaseProperty.IsVisible == true)
                     {
-                        if (item.RenderProperty.IsStatic == true)
+                        if (item.BaseProperty.IsStatic == true)
                         {
                             item.Draw(StaticSprite);
                         }
@@ -96,22 +97,19 @@ namespace DotAge.Core.View
             }
 
             DateTime end = DateTime.Now;
-            CoreInfo.Message = "Render Time: " + (end - start).TotalMilliseconds + " ms\n" + "Core Time: " + CoreTime + " ms\n";
+            CoreInfo.Message = "Render Time: " + (end - start).TotalMilliseconds + " ms\n" + "Core Time: " + CoreTime + " ms\n" + "Force : " + WishForce;
             DrawInfo.Draw(StaticSprite);
 
             DynamicSprite.End();
             StaticSprite.End();
-
             base.Draw(gameTime);
-
-
-
         }
+        public Vector2 WishForce = Vector2.Zero;
         public double CoreTime = 0;
         public MessageEntity CoreInfo = new MessageEntity();
         public TextSprite DrawInfo = new TextSprite()
         {
-            RenderProperty = new TextRenderProperty()
+            BaseProperty = new TextRenderProperty()
             {
                 IsStatic = true,
                 Position = new Vector2(10, 10),
@@ -120,13 +118,11 @@ namespace DotAge.Core.View
             },
 
         };
-
     }
-    
 
     public abstract class Sprite
     {
-        public BaseRenderProperty RenderProperty = null;
+        public BaseRenderProperty BaseProperty = null;
         public Sprite()
         {
 
@@ -134,19 +130,19 @@ namespace DotAge.Core.View
 
         public virtual bool CheckVaild()
         {
-            if (RenderProperty == null)
+            if (BaseProperty == null)
             {
                 return false;
             }
-            if (RenderProperty.IsStatic == true)
+            if (BaseProperty.IsStatic == true)
             {
-                if (RenderProperty.IsChanged == true)
+                if (BaseProperty.IsChanged == true)
                 {
                     return true;
                 }
                 else
                 {
-                    RenderProperty.IsChanged = false;
+                    BaseProperty.IsChanged = false;
                     return false;
                 }
             }
@@ -160,22 +156,22 @@ namespace DotAge.Core.View
 
         public virtual bool Dispose()
         {
-            RenderProperty = null;
+            BaseProperty = null;
 
             return true;
         }
 
         public virtual bool UpdatePosition(Vector2 position)
         {
-            RenderProperty.Position = position;
+            BaseProperty.Position = position;
             return true;
         }
 
         public virtual bool UpdateSize(Vector2 size)
         {
-            if (RenderProperty is TextureRenderProperty)
+            if (BaseProperty is TextureRenderProperty)
             {
-                (RenderProperty as TextureRenderProperty).Size = size;
+                (BaseProperty as TextureRenderProperty).Size = size;
                 return true;
             }
             return false;
@@ -186,11 +182,11 @@ namespace DotAge.Core.View
     {
         public override bool CheckVaild()
         {
-            if (RenderProperty is not TextureRenderProperty)
+            if (BaseProperty is not TextureRenderProperty)
             {
                 return false;
             }
-            if ((RenderProperty as TextureRenderProperty).Region == null)
+            if ((BaseProperty as TextureRenderProperty).Region == null)
             {
                 return false;
             }
@@ -199,19 +195,19 @@ namespace DotAge.Core.View
 
         public TextureSprite()
         {
-            RenderProperty = new TextureRenderProperty();
+            BaseProperty = new TextureRenderProperty();
         }
 
         public TextureSprite(TextureRenderProperty renderProperty)
         {
-            RenderProperty = renderProperty;
+            BaseProperty = renderProperty;
         }
 
         public override bool Draw(SpriteBatch spriteBatch)
         {
             if (CheckVaild() == true)
             {
-                var property = RenderProperty as TextureRenderProperty;
+                var property = BaseProperty as TextureRenderProperty;
                 spriteBatch.Draw(
                     property.Region.Texture,
                     destinationRectangle: new Rectangle(property.Position.ToPoint(), property.Size.ToPoint()), 
@@ -235,16 +231,16 @@ namespace DotAge.Core.View
     {
         public TextSprite()
         {
-            RenderProperty = new TextRenderProperty();
+            BaseProperty = new TextRenderProperty();
         }
 
         public override bool CheckVaild()
         {
-            if (RenderProperty is not TextRenderProperty)
+            if (BaseProperty is not TextRenderProperty)
             {
                 return false;
             }
-            if ((RenderProperty as TextRenderProperty).Font == null)
+            if ((BaseProperty as TextRenderProperty).Font == null)
             {
                 return false;
             }
@@ -255,7 +251,7 @@ namespace DotAge.Core.View
         {
             if (CheckVaild() == true)
             {
-                var property = RenderProperty as TextRenderProperty;
+                var property = BaseProperty as TextRenderProperty;
                 spriteBatch.DrawString(
                     property.Font,
                     property.TextSource.Message,
@@ -298,7 +294,7 @@ namespace DotAge.Core.View
         {
             if (CheckVaild() == true)
             {
-                var property = RenderProperty as TextureRenderProperty;
+                var property = BaseProperty as TextureRenderProperty;
                 spriteBatch.Draw(
                     Animation.CurrentFrame.Texture,
                     destinationRectangle: new Rectangle(property.Position.ToPoint(), property.Size.ToPoint()), 
@@ -354,7 +350,7 @@ namespace DotAge.Core.View
         {
             StartSprite.Position = EndSprite.Position;
             EndSprite.Position = position;
-            
+            ResetLerp();
             return true;
         }
 
@@ -362,7 +358,7 @@ namespace DotAge.Core.View
         {
             StartSprite.Size = EndSprite.Size;
             EndSprite.Size = size;
-            
+            ResetLerp();
             return true;
         }
 
@@ -377,13 +373,17 @@ namespace DotAge.Core.View
             if (CurrentFrame < LerpDurationFrames)
             {
                 CurrentFrame++;
-                RenderProperty.Position = (EndSprite.Position - StartSprite.Position) * LerpProgress + StartSprite.Position;
-                (RenderProperty as TextureRenderProperty).Size = (EndSprite.Size - StartSprite.Size) * LerpProgress + StartSprite.Size;
+                BaseProperty.Position = (EndSprite.Position - StartSprite.Position) * LerpProgress + StartSprite.Position;
+                (BaseProperty as TextureRenderProperty).Size = (EndSprite.Size - StartSprite.Size) * LerpProgress + StartSprite.Size;
                 return true;
             }
             else if (AutoLoop == true)
             {
                 ReverseLerp();
+            }
+            else if (AutoLoop == true && CurrentFrame >= LerpDurationFrames)
+            {
+                ResetLerp();
             }
             return false;
         }
@@ -422,7 +422,7 @@ namespace DotAge.Core.View
 
         public LerpSprite(TextureRenderProperty startSprite, TextureRenderProperty endSprite , int Ticks)
         {
-            var _ = InitLerp(startSprite, endSprite , Ticks) ? RenderProperty.IsChanged = true : RenderProperty.IsChanged = false;
+            var _ = InitLerp(startSprite, endSprite , Ticks) ? BaseProperty.IsChanged = true : BaseProperty.IsChanged = false;
         }
 
         public override bool Draw(SpriteBatch spriteBatch)
@@ -430,16 +430,16 @@ namespace DotAge.Core.View
             if (CheckVaild() == true)
             {
                 spriteBatch.Draw(
-                    (RenderProperty as TextureRenderProperty).Region.Texture,
+                    (BaseProperty as TextureRenderProperty).Region.Texture,
                     destinationRectangle: new Rectangle(
-                        RenderProperty.Position.ToPoint(),
-                        (RenderProperty as TextureRenderProperty).Size.ToPoint()),
-                    sourceRectangle: (RenderProperty as TextureRenderProperty).Region.TextureRect,
-                    RenderProperty.TintColor,
-                    RenderProperty.Rotation,
-                    RenderProperty.Origin,
-                    RenderProperty.Effect,
-                    RenderProperty.LayerDepth
+                        BaseProperty.Position.ToPoint(),
+                        (BaseProperty as TextureRenderProperty).Size.ToPoint()),
+                    sourceRectangle: (BaseProperty as TextureRenderProperty).Region.TextureRect,
+                    BaseProperty.TintColor,
+                    BaseProperty.Rotation,
+                    BaseProperty.Origin,
+                    BaseProperty.Effect,
+                    BaseProperty.LayerDepth
                 );
                 PushFrame();
 

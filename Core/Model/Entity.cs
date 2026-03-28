@@ -43,7 +43,6 @@ namespace DotAge.Core.Model
             foreach (var index in BelongIndex.ToArray())
             {
                 index.RemoveEntity(this as Entity);
-                index.RemoveCrashBox(this as IPhysicEntity);
             }
             BelongIndex.Clear();
             return true;
@@ -63,9 +62,9 @@ namespace DotAge.Core.Model
             return [.. BelongIndex.SelectMany(index => index.EntityIndex).Distinct()];
         }
 
-        public List<IPhysicEntity> GetRangeCrashBox()
+        public List<IPhysicEntity> GetIndexRangeCrashBox()
         {
-            return [.. BelongIndex.SelectMany(index => index.CrashIndex).Distinct()];
+            return [.. BelongIndex.SelectMany(index => index.CrashBoxIndex).Distinct()];
         }
     }
 
@@ -75,7 +74,7 @@ namespace DotAge.Core.Model
 
         public bool OnCrash(IPhysicEntity physicEntity)
         {
-            return false;
+            return true;
         }
 
     }
@@ -89,6 +88,16 @@ namespace DotAge.Core.Model
     {
         GameEntity GameProperty { get; set; }
         public bool IsAlive() => GameProperty.IsAlive;
+
+        public virtual bool BeUse(IGameEntity user)
+        {
+            return true;
+        }
+
+        public virtual bool Use()
+        {
+            return true;
+        }
     }
 
     class AbstructPhysicEntity : IPhysicEntity
@@ -110,13 +119,13 @@ namespace DotAge.Core.Model
         public event Action OnUpdate;
 
         public bool IsRenderFollowPhysic = true;
-        public Vector2 FaceTo { get { return (PhysicProperty as PhysicEntity).Pioneer.Direct; } }
 
         public Entity(EngineAccessor accessor)
         {
             this.EngineAccess = accessor;
 
             RenderProperty.LoadTexture("MissingTexture");
+            GameProperty.Trigger.TriggerLoacation = PhysicProperty;
             OnUpdate += () => 
             {
                 if (IsRenderFollowPhysic == true)
@@ -125,6 +134,7 @@ namespace DotAge.Core.Model
                     RenderProperty.UpdateSize(PhysicProperty.Size);
                 }
                 UpdateBelongIndex();
+                GameProperty.SetFaceForward(PhysicProperty.FaceForward);
             };
             PhysicProperty.OnCrashEvent += (pb) => 
             {
@@ -245,8 +255,9 @@ namespace DotAge.Core.Model
         {
             foreach (var index in BelongIndex.ToArray())
             {
-                index.RemoveEntity(this as Entity);
-                index.RemoveCrashBox(this as IPhysicEntity);
+                index.RemoveEntity(this);
+                index.RemoveCrashBox(this);
+                index.RemoveRenderEntity(this);
             }
             BelongIndex.Clear();
             return true;
@@ -271,14 +282,83 @@ namespace DotAge.Core.Model
             return false;
         }
 
-        public List<Entity> GetRangeEntity()
+        public virtual bool Use()
+        {
+            RayF SearchForward = new RayF(PhysicProperty.CrashBox.Center , PhysicProperty.FaceForward);
+            var ret = EngineAccess?.GetLineIndex(SearchForward, GameProperty.UseRange);
+            foreach (var index in ret ?? [])
+            {
+                if (index != null && index != this)
+                {
+                    index.BeUse(this);
+                }
+            }
+            
+            /*
+            if (ret.Count != 0)
+            {
+                if (ret.First() == this)
+                {
+                    if (ret.Count == 1)
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        ret.RemoveAt(0);
+                    }
+                }
+                
+                var target = ret.First();
+                if (target.BeUse(this) == true)
+                {
+                    return true;
+                }
+            }*/
+            return false;
+        }
+
+        public virtual bool BeUse(IGameEntity user)
+        {
+            return true;
+        }
+
+        public List<Entity> GetIndexRangeEntity()
         {
             return [.. BelongIndex.SelectMany(index => index.EntityIndex).Distinct()];
         }
 
-        public List<IPhysicEntity> GetRangeCrashBox()
+        public List<IPhysicEntity> GetIndexRangeCrashBox()
         {
-            return [.. BelongIndex.SelectMany(index => index.CrashIndex).Distinct()];
+            return [.. BelongIndex.SelectMany(index => index.CrashBoxIndex).Distinct()];
+        }
+
+        public List<IRenderEntity> GetIndexRangeRender()
+        {
+            return [.. BelongIndex.SelectMany(index => index.RenderIndex).Distinct()];
+        }
+
+        public virtual List<Entity> GetRangeEntity()
+        {
+            float range = GameProperty.LoadEntityRange;
+            return EngineAccess?.GetRangeIndex(new RectF(PhysicProperty.Position - new Vector2(range, range) , PhysicProperty.Size + new Vector2(range * 2, range * 2)))?.SelectMany(index => index.EntityIndex).Distinct().ToList() ?? [];
+        }
+
+        public virtual List<IPhysicEntity> GetRangeCrashBox()
+        {
+            float range = MathF.Max(PhysicProperty.WishRange.Size.X , PhysicProperty.WishRange.Size.Y);
+            return EngineAccess?.GetRangeIndex(new RectF(PhysicProperty.Position - new Vector2(range, range), PhysicProperty.Size + new Vector2(range * 2, range * 2)))?.SelectMany(index => index.CrashBoxIndex).Distinct().ToList() ?? [];
+        }
+
+        public virtual List<IRenderEntity> GetRangeRender()
+        {
+            RectF range = new(PhysicProperty.Position - (( GameProperty.LoadChunkRange / 2 ) * GameSetting.ChunkSize) ,new Vector2( GameProperty.LoadChunkRange , GameProperty.LoadChunkRange ) * GameSetting.ChunkSize);
+            return EngineAccess?.GetRangeIndex(range)?.SelectMany(index => index.RenderIndex).Distinct().ToList() ?? [];
+        }
+
+        public override string ToString()
+        {
+            return $"Entity ID: {ID}, Type: {GetType().Name}, Position: {PhysicProperty.Position}, Size: {PhysicProperty.Size}, IsAlive: {GameProperty.IsAlive}";
         }
     }
 
@@ -306,19 +386,19 @@ namespace DotAge.Core.Model
     {
         public Soildre(EngineAccessor accessor) : base(accessor)
         {
+            PhysicProperty.IsSoild = true;
             RenderProperty = new LerpRenderEntity();
-            RenderProperty.LoadTexture("TV_Happy");
-            
+            RenderProperty.LoadTexture("Human_Engineer");
         }
 
         public override bool Update()
         {
             base.Update();
-
+            
             if (PhysicProperty.IsMoving == true)
             {
-                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(38, 32));
-                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(26, 32));
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(36, 32));
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(28, 32));
             }
             else
             {
@@ -329,9 +409,18 @@ namespace DotAge.Core.Model
         }
     }
 
+    public class TargetCore : Creature
+    {         
+        public TargetCore(EngineAccessor accessor) : base(accessor)
+        {
+            RenderProperty.LoadTexture("TV_Happy");
+            GameProperty.Health = 1000;
+        }
+    }
+
     public class Zombie : Creature
     {
-
+        public Entity Target = null;
         public Zombie(EngineAccessor accessor) : base(accessor)
         {
             RenderProperty.LoadTexture("TV_Normal");
@@ -340,25 +429,36 @@ namespace DotAge.Core.Model
 
         public override void OnCrash(IPhysicEntity _entity)
         {
-            if (_entity is Zombie == false)
+            if (_entity is Soildre == true)
             {
-                (_entity as Zombie).GameProperty.ModifyHealth(-0f , this);
+                (_entity as Soildre).GameProperty.ModifyHealth(-0f , this);
             }
             base.OnCrash(_entity);
         }
-
+        
         public override bool Update()
         {
             if (EngineAccess == null)
             {
                 return base.Update();
             }
-            var target = GetRangeEntity().OfType<Soildre>();
-            if (target.Count() != 0)
+            if (Target == null)
             {
-                (PhysicProperty as PhysicEntity).Pioneer.UpdateDirect(target.First().PhysicProperty.Position - PhysicProperty.Position);
+                Target = GetRangeEntity().Find(match => match.GetType() == typeof(Soildre));
             }
+            else
+            {
+                (PhysicProperty as PhysicEntity).Pioneer.UpdateDirect(Target.PhysicProperty.Position - PhysicProperty.Position);
+            }
+            
             return base.Update();
+        }
+
+        public override bool BeUse(IGameEntity gameEntity)
+        {
+            RenderProperty.Sprite.BaseProperty.TintColor = Color.Red;
+            Target = this;
+            return base.BeUse(gameEntity);
         }
     }
 
@@ -565,16 +665,17 @@ namespace DotAge.Core.Model
         {
             RenderProperty = new LerpRenderEntity();
             (RenderProperty as LerpRenderEntity).LoadAsLerp.AutoLoop = false;
-            IsRenderFollowPhysic = false;
+            IsRenderFollowPhysic = true;
             RenderProperty.LoadTexture("MissingTexture");
             (RenderProperty as LerpRenderEntity).LoadAsLerp.InitLerp(new TextureRenderProperty() , new TextureRenderProperty(), 1);
-            RenderProperty.UpdateSize(new Vector2(0, 32));
+            RenderProperty.UpdateSize(new Vector2(0, 64));
             RenderProperty.UpdateSize(new Vector2(32, 64));
-            
             PhysicProperty.Size = new Vector2(32, 64);
+            PhysicProperty.IsSoild = true;
+            GameProperty.Trigger.TriggerLoacation = new Location(new Vector2(32 * 3, 32 * 4), PhysicProperty.Size);
         }
 
-        public bool Use()
+        public override bool BeUse(IGameEntity gameEntity)
         {
             if (IsProcessing == true)
             {
