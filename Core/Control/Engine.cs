@@ -16,7 +16,7 @@ namespace DotAge.Core.Control
 {
     public class Engine
     {
-        private readonly Version Engine_Version = new (0, 2, 0);
+        private readonly Version Engine_Version = new(0, 2, 0);
         public EngineAccessor CurrentEngineAccessor = new EngineAccessor();
 
         public Graphic CurrentGrapic = null;
@@ -30,7 +30,7 @@ namespace DotAge.Core.Control
         public DateTime LastTickTime { get; set; } = DateTime.Now;
         public DateTime CurrentTime { get { return DateTime.Now; } }
         public int GameTime = 0;
-        public double TickDurationPercent { get { return (CurrentTime - LastTickTime).TotalMilliseconds / GameTick; }}
+        public double TickDurationPercent { get { return (CurrentTime - LastTickTime).TotalMilliseconds / GameTick; } }
         public double LastLoopTime = 0;
 
         public List<Script> Scripts = new List<Script>();
@@ -38,14 +38,14 @@ namespace DotAge.Core.Control
 
         public Engine()
         {
-            
+
         }
 
         public bool Initialize()
         {
             CurrentEngineAccessor.Initialize(this);
             CurrentGrapic = new Graphic();
-            
+
             Thread GrapicThread = new Thread(() => CurrentGrapic.Run())
             {
                 IsBackground = true,
@@ -75,13 +75,13 @@ namespace DotAge.Core.Control
             TextureManager.LoadedTextures["Character"].LoadName("Blocker", new Point(2, 9));
 
             TerrainChunk tc = new TerrainChunk();
-            for (int y = 0; y < 99; y++)
+            for (int y = 0; y < 40; y++)
             {
-                for (int x = 0; x < 99; x++)
+                for (int x = 0; x < 30; x++)
                 {
-                    if (x == 0 || y == 0 || x == 98 || y == 98 )
+                    if (x == 5 || y == 5 || x == 25 || y == 15 && x >= 5 && x <= 25 && y <= 15 && y >= 5)
                     {
-                        Water ground = new Water()
+                        Wall ground = new Wall()
                         {
                             PhysicProperty = new LocationEntity()
                             {
@@ -116,7 +116,7 @@ namespace DotAge.Core.Control
                 PhysicProperty = new PhysicEntity()
                 {
                     SpeedLength = 0.1f,
-                    Position = new Vector2(45 * 32 + 60, 45 * 32),
+                    Position = new Vector2(15 * 32 + 60, 10 * 32),
                     Size = new Vector2(32, 32),
                     IsSoild = true,
                     PathNodes = new Path()
@@ -136,7 +136,7 @@ namespace DotAge.Core.Control
             });
             door.PhysicProperty.Position = new Vector2(32 * 3, 32 * 4);
             door.RenderProperty.UpdatePosition(door.PhysicProperty.Position);
-            
+            RemoveEntity(door);
 
 
             ZoneEntity _moveLeft = new ZoneEntity(Controlers.MouseEntity, TwoStatus.Any)
@@ -157,7 +157,8 @@ namespace DotAge.Core.Control
                 Description = "Screen Move To Top",
                 TriggerLoacation = new Location(new Margin(0, 0, 0, GameSetting.ScreenHeight - 100).ToRectF()),
             };
-            _moveTop.BindDelegate((p) => {
+            _moveTop.BindDelegate((p) =>
+            {
                 Graphic.ViewCamera.Move(new Vector2(0, 1)); return true;
             });
             ZoneEntity _moveBottom = new ZoneEntity(Controlers.MouseEntity, TwoStatus.Any)
@@ -173,11 +174,15 @@ namespace DotAge.Core.Control
 
             Scripts.Add(new Script(CurrentEngineAccessor));
 
-            
+
 
             StartTime = DateTime.Now;
             LastTickTime = DateTime.Now;
 
+
+            CurrentGrapic.LoadSoundEffect("hit");
+            CurrentGrapic.LoadSoundEffect("shoot");
+            CurrentGrapic.LoadSoundEffect("wood");
             return true;
         }
 
@@ -196,6 +201,13 @@ namespace DotAge.Core.Control
                 //START EXCUTE
                 if (GraphicEventAble)
                 {
+                    Graphic.ScriptInfo.Message = "Day " + (GameTick / 2000f) +
+                        "\nHealth : " + GameData.MainPlayer.ControlEntity.GameProperty.Health +
+                        "\nSkill Point : " + GameData.MainPlayer.ControlEntity.GameProperty.SkillPoint +
+                        "\nDmg : " + GameData.MainPlayer.ControlEntity.GameProperty.Damage +
+                        "\nPir : " + GameData.MainPlayer.ControlEntity.GameProperty.PierceCount
+                        ;
+
                     Controlers.Update();
                     foreach (var item in GameData.EntityControlers)
                     {
@@ -203,14 +215,14 @@ namespace DotAge.Core.Control
                         {
                             if (Controlers.ChangeKeyStat[key] == item.KeyDelegate[key].TriggerStat || item.KeyDelegate[key].TriggerStat == TwoStatus.Any)
                             {
-                                item.FrameKeys.Add((key , Controlers.ChangeKeyStat[key]));
+                                item.FrameKeys.Add((key, Controlers.ChangeKeyStat[key]));
                             }
                         }
                         foreach (var mouse in item.MouseDelegate.Keys)
                         {
                             if (Controlers.ChangeMouseStat[mouse] == item.MouseDelegate[mouse].TriggerStat || item.MouseDelegate[mouse].TriggerStat == TwoStatus.Any)
                             {
-                                item.FrameMouse.Add((mouse , Controlers.ChangeMouseStat[mouse]));
+                                item.FrameMouse.Add((mouse, Controlers.ChangeMouseStat[mouse]));
                             }
                         }
                         item.EndFrame();
@@ -252,7 +264,8 @@ namespace DotAge.Core.Control
                             {
                                 break;
                             }
-                            IPhysicEntity BeingUpdateEntity = RangeCrash[j];
+                            var BeingUpdateEntity = RangeCrash[j];
+
                             if (BeingUpdateEntity.PhysicProperty.Size == Vector2.Zero || BeingUpdateEntity == UpdateEntity)
                             {
                                 continue;
@@ -260,7 +273,11 @@ namespace DotAge.Core.Control
 
                             if (RectF.IsContain(UpdateEntity.PhysicProperty.WishRange, BeingUpdateEntity.PhysicProperty.WishRange))
                             {
-
+                                if (RectF.IsContain(UpdateEntity.PhysicProperty.WishDestination, BeingUpdateEntity.PhysicProperty.WishDestination))
+                                {
+                                    UpdateEntity.OnCrash(BeingUpdateEntity);
+                                    BeingUpdateEntity.OnCrash(UpdateEntity);
+                                }
                                 if (UpdateEntity.PhysicProperty.IsSoild && BeingUpdateEntity.PhysicProperty.IsSoild)
                                 {
                                     RectF CrossZone = RectF.CrossZone(UpdateEntity.PhysicProperty.WishRange, BeingUpdateEntity.PhysicProperty.WishRange);
@@ -272,7 +289,7 @@ namespace DotAge.Core.Control
                                     {
                                         rate = 0.5f;
                                     }
-                                    
+
                                     Vector2 b_sign = MathTool.VectorSign(UpdateEntity.PhysicProperty.Position - BeingUpdateEntity.PhysicProperty.Position);
                                     float XYFlag = MathF.Abs(UpdateEntity.PhysicProperty.Position.X + UpdateEntity.PhysicProperty.Size.X - BeingUpdateEntity.PhysicProperty.Position.X - BeingUpdateEntity.PhysicProperty.Size.Y) - MathF.Abs(UpdateEntity.PhysicProperty.Position.Y + UpdateEntity.PhysicProperty.Size.Y - BeingUpdateEntity.PhysicProperty.Position.Y - BeingUpdateEntity.PhysicProperty.Size.Y);
                                     if (XYFlag > 0)
@@ -280,7 +297,7 @@ namespace DotAge.Core.Control
                                         UpdateEntity.PhysicProperty.WishForward.X += (rate * b_sign.X * CrossVec.X);
                                         BeingUpdateEntity.PhysicProperty.WishForward.X += ((1 - rate) * b_sign.X * CrossVec.X);
                                     }
-                                    else if (XYFlag < 0) 
+                                    else if (XYFlag < 0)
                                     {
                                         UpdateEntity.PhysicProperty.WishForward.Y += (rate * b_sign.Y * CrossVec.Y);
                                         BeingUpdateEntity.PhysicProperty.WishForward.Y += ((1 - rate) * b_sign.Y * CrossVec.Y);
@@ -292,23 +309,19 @@ namespace DotAge.Core.Control
                                     }
 
                                 }
-                                if (RectF.IsContain(UpdateEntity.PhysicProperty.WishDestination, BeingUpdateEntity.PhysicProperty.WishDestination))
-                                {
-                                    UpdateEntity.OnCrash(BeingUpdateEntity);
-                                    BeingUpdateEntity.OnCrash(UpdateEntity);
-                                }
+
                             }
                         }
                         if (UpdateEntity is Soildre)
                         {
                             CurrentGrapic.WishForce = UpdateEntity.PhysicProperty.WishForward;
                         }
-                        UpdateEntity.PhysicProperty.UpdatePosition(); 
+                        UpdateEntity.PhysicProperty.UpdatePosition();
                     }
 
                     foreach (var item in LoadRangeTerrain)
                     {
-                        if (MathF.Ceiling(RectF.DistanceToPoint(item.RenderProperty.Sprite.BaseProperty.RenderBox , Updator.RenderProperty.Sprite.BaseProperty.RenderBox.Center).Length()) > Updator.GameProperty.Sight)
+                        if (MathF.Ceiling(RectF.DistanceToPoint(item.RenderProperty.Sprite.BaseProperty.RenderBox, Updator.RenderProperty.Sprite.BaseProperty.RenderBox.Center).Length()) > Updator.GameProperty.Sight)
                         {
                             item.RenderProperty.Sprite.BaseProperty.IsVisible = false;
                         }
@@ -321,10 +334,10 @@ namespace DotAge.Core.Control
                     foreach (var item in LoadRangeEntity)
                     {
                         item.Update();
-                    }   
+                    }
                     GameTime++;
                 }
-                
+
                 //END EXCUTE
                 DateTime EndExcute = DateTime.Now;
                 TimeSpan ts = EndExcute - StartExcute;
@@ -333,7 +346,7 @@ namespace DotAge.Core.Control
                 float SleepTime = 10f;
                 if (ts.TotalMilliseconds <= GameTick)
                 {
-                     Thread.Sleep(GameTick - (int)ts.TotalMilliseconds);
+                    Thread.Sleep(GameTick - (int)ts.TotalMilliseconds);
                 }
                 else
                 {
@@ -430,6 +443,11 @@ namespace DotAge.Core.Control
         {
             return GameData.GameIndex.GetRangeIndex(Range);
         }
+
+        public bool PlaySound(string name)
+        {
+            return CurrentGrapic.SoundEffects[name].Play();
+        }
     }
 
     public class EngineAccessor//将引擎访问器分配给需要访问其他类的类
@@ -442,6 +460,7 @@ namespace DotAge.Core.Control
         public Func<MessageEntity , TextSprite> AddMessageEntity;
         public Func<RectF, List<BaseIndex>> GetRangeIndex;
         public Func<RayF, float, List<IGameEntity>> GetLineIndex;
+        public Func<string , bool> PlaySoundEffect;
 
         public bool Initialize(Engine engine)
         {
@@ -480,6 +499,10 @@ namespace DotAge.Core.Control
             {
                 return engine.GameData.GetRayTrigger(line , length);
             };
+            PlaySoundEffect = (name) =>
+            {
+                return engine.PlaySound(name);
+             };
             return true;
         }
     }

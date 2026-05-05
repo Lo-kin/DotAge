@@ -197,10 +197,10 @@ namespace DotAge.Core.Model
 
     public struct RectF
     {
-        public float Right { get { return Position.X + Size.X; } }
+        public float Right { get { return Position.X + Size.X - 1; } }
         public float Left { get { return Position.X; } }
         public float Top { get { return Position.Y; } }
-        public float Bottom { get { return Position.Y + Size.Y; } }
+        public float Bottom { get { return Position.Y + Size.Y - 1; } }
         public Vector2 Center { get { return Position + (Size / 2); } }
         public Vector2 Position { get; set; } = new Vector2();
         public Vector2 Size { get; set; } = new Vector2();
@@ -242,6 +242,9 @@ namespace DotAge.Core.Model
             float _xR = Math.Max(rect.Position.X + rect.Size.X, rect.Position.X + rect.Size.X + expandVec.X);
             float _yT = Math.Min(rect.Position.Y, rect.Position.Y + expandVec.Y);
             float _yB = Math.Max(rect.Position.Y + rect.Size.Y, rect.Position.Y + rect.Size.Y + expandVec.Y);
+            //rect.Position = new Point(_xL, _yT);
+
+
             return new RectF(_xL, _yT, _xR, _yB);
         }
 
@@ -352,7 +355,7 @@ namespace DotAge.Core.Model
         public static bool IsContain(RectF rect1, Vector2 point)
         {
             bool stat = false;
-            if (point.X > rect1.Left && point.X < rect1.Right && point.Y > rect1.Top && point.Y < rect1.Bottom)
+            if (point.X >= rect1.Left && point.X <= rect1.Right && point.Y >= rect1.Top && point.Y <= rect1.Bottom)
             {
                 stat = true;
             }
@@ -362,7 +365,7 @@ namespace DotAge.Core.Model
         public static bool IsContain(RectF rect1, RectF rect2)
         {
             bool stat = false;
-            if (rect1.Right > rect2.Left && rect1.Left < rect2.Right && rect1.Bottom > rect2.Top && rect1.Top < rect2.Bottom)
+            if (rect1.Right >= rect2.Left && rect1.Left <= rect2.Right && rect1.Bottom >= rect2.Top && rect1.Top <= rect2.Bottom)
             {
                 stat = true;
             }
@@ -372,7 +375,17 @@ namespace DotAge.Core.Model
         public bool Contains(RectF rect2)
         {
             bool stat = false;
-            if (Right > rect2.Left && Left < rect2.Right && Bottom > rect2.Top && Top < rect2.Bottom)
+            if (Right >= rect2.Left && Left <= rect2.Right && Bottom >= rect2.Top && Top <= rect2.Bottom)
+            {
+                stat = true;
+            }
+            return stat;
+        }
+
+        public bool Contains(Point point)
+        {
+            bool stat = false;
+            if (Right >= point.X && Left <= point.X && Bottom >= point.Y && Top <= point.Y)
             {
                 stat = true;
             }

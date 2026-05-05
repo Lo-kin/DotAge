@@ -27,7 +27,7 @@ namespace DotAge.Core.View
         public static SpriteFont _font;
         public List<Sprite> RenderObjects = new List<Sprite>();
         public bool IsLoaded = false;
-
+        public Dictionary<string, SoundEffect> SoundEffects = new();
 
         public Graphic()
         {
@@ -35,6 +35,20 @@ namespace DotAge.Core.View
             Content.RootDirectory = "Content";
             
             IsMouseVisible = true;
+        }
+
+        public bool LoadSoundEffect(string name)
+        {
+            try
+            {
+                SoundEffects[name] = Content.Load<SoundEffect>(name);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Load Sound Effect Error: " + ex.Message);
+                return false;
+            }
         }
 
         protected override void Initialize()
@@ -55,6 +69,8 @@ namespace DotAge.Core.View
             IsLoaded = true;
             (DrawInfo.BaseProperty as TextRenderProperty).TextSource = CoreInfo;
             (DrawInfo.BaseProperty as TextRenderProperty).Font = _font;
+            (DrawScriptInfo.BaseProperty as TextRenderProperty).TextSource = ScriptInfo;
+            (DrawScriptInfo.BaseProperty as TextRenderProperty).Font = _font;
             // TODO: use this.Content to load your game content here
         }
         protected override void Update(GameTime gameTime)
@@ -67,6 +83,8 @@ namespace DotAge.Core.View
 
             base.Update(gameTime);
         }
+
+        public static StringBuilder sb = new StringBuilder();
 
         protected override void Draw(GameTime gameTime)
         {
@@ -100,6 +118,8 @@ namespace DotAge.Core.View
             CoreInfo.Message = "Render Time: " + (end - start).TotalMilliseconds + " ms\n" + "Core Time: " + CoreTime + " ms\n" + "Force : " + WishForce;
             DrawInfo.Draw(StaticSprite);
 
+            DrawScriptInfo.Draw(StaticSprite);
+
             DynamicSprite.End();
             StaticSprite.End();
             base.Draw(gameTime);
@@ -114,6 +134,19 @@ namespace DotAge.Core.View
                 IsStatic = true,
                 Position = new Vector2(10, 10),
                 TintColor = Color.Yellow,
+                Font = _font,
+            },
+
+        };
+
+        public static MessageEntity ScriptInfo = new MessageEntity();
+        public TextSprite DrawScriptInfo = new TextSprite()
+        {
+            BaseProperty = new TextRenderProperty()
+            {
+                IsStatic = true,
+                Position = new Vector2(10, 100),
+                TintColor = Color.Blue,
                 Font = _font,
             },
 

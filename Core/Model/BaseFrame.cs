@@ -96,7 +96,7 @@ namespace DotAge.Core.Model
         public bool Visibility { get; set; } = true;
         public bool IsRenderFollowCrashbox { get; set; } = false;
 
-        public float Money = 0f;
+        public float Money = 100f;
         public Dictionary<Type, int> ProductCount = new Dictionary<Type, int>();
 
         public int SkillPoint = 0;

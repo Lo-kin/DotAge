@@ -125,12 +125,19 @@ namespace DotAge.Core.Control
                 RepeatInterval = 1,
                 TickDelegateFunc = (engineAccessor) =>
                 {
+                    var i = Random.Shared.Next(0, 2) * 0.5f;
+                    var j = Random.Shared.Next(0, 2) * 0.5f;
+                    if (i == 1f && j == 1f)
+                    {
+                        j = 0;
+                        i = 0;
+                    }
                     engineAccessor.AddEntity(new Zombie(Accessor)
                     {
                         PhysicProperty =
                         {
                             SpeedLength= 0.03f,
-                            Position = new Vector2(200, 200),
+                            Position = new Vector2(0 + 30 * 32 * i, 0 + 20 * 32 * j),
                             Size = new Vector2(32, 32),
                             IsSoild = true
                         },

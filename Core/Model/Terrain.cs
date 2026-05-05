@@ -1,10 +1,12 @@
-﻿using System;
+﻿using DotAge.Core.Control;
+using DotAge.Core.View;
+using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using DotAge.Core.View;
-using Microsoft.Xna.Framework;
 
 namespace DotAge.Core.Model
 {
@@ -96,10 +98,11 @@ namespace DotAge.Core.Model
             RenderProperty.UpdatePosition(PhysicProperty.Position);
         }
 
-        public void Crash(int _EntityID)
+        public virtual bool OnCrash(IPhysicEntity physicEntity)
         {
             // This method can be overridden by derived classes to handle crash events.
             // Currently, it does nothing.
+            return true;
         }
 
         public void Update()
@@ -142,6 +145,54 @@ namespace DotAge.Core.Model
 
         }
     }
+
+    class Wall : Terrain
+    {
+        public int crashCount = 100;
+        public int LastSoundTime = 0;
+        public int SoundCooldown = 50; // Cooldown time in milliseconds
+        public Wall()
+        {
+            PhysicProperty.IsSoild = true;
+            RenderProperty.LoadTexture("Blocker");
+        }
+
+        public override bool OnCrash(IPhysicEntity BeingCrashedEntity)
+        {
+            if (BeingCrashedEntity is Zombie)
+            { 
+                if (crashCount <= 0)
+                {
+                    RenderProperty.LoadTexture("Gate");
+                    PhysicProperty.IsSoild = false;
+                }
+                else
+                {
+                    crashCount--;
+                }
+                if ((BeingCrashedEntity as Entity).EngineAccess.GetGameTime() - LastSoundTime >= SoundCooldown)
+                {
+                    (BeingCrashedEntity as Entity).EngineAccess.PlaySoundEffect("wood");
+                    LastSoundTime = (BeingCrashedEntity as Entity).EngineAccess.GetGameTime();
+                }
+                
+            }
+            if (BeingCrashedEntity is Soildre)
+            {
+                if (crashCount <= 0)
+                {
+                    RenderProperty.LoadTexture("Blocker");
+                    PhysicProperty.IsSoild = true;
+                }
+                if (crashCount < 100)
+                {
+                    crashCount++;
+                }
+            }
+            return base.OnCrash(BeingCrashedEntity);
+        }
+    }
+
 
     public class Ground : Terrain
     {

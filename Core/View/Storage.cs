@@ -382,7 +382,8 @@ namespace DotAge.Core.View
 
         public BaseIndex CheckVaild(Point point)
         {
-            BaseIndex Status = GridIndex.Find(x => x.IndexPosition == point);
+
+            BaseIndex Status = GridIndex.Find(x => x.CheckPoint(point));
             if (Status == null)
             {
                 SetIndex(point.X, point.Y , out BaseIndex t);

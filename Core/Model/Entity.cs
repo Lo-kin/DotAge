@@ -72,11 +72,7 @@ namespace DotAge.Core.Model
     {
         PhysicBase PhysicProperty { get; set; }
 
-        public bool OnCrash(IPhysicEntity physicEntity)
-        {
-            return true;
-        }
-
+        public abstract bool OnCrash(IPhysicEntity physicEntity);
     }
 
     public interface IRenderEntity
@@ -103,6 +99,11 @@ namespace DotAge.Core.Model
     class AbstructPhysicEntity : IPhysicEntity
     {
         public PhysicBase PhysicProperty { get; set; }
+
+        public bool OnCrash(IPhysicEntity physicEntity)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class Entity : IPhysicEntity, IRenderEntity, IGameEntity , IIndexable
@@ -119,6 +120,7 @@ namespace DotAge.Core.Model
         public event Action OnUpdate;
 
         public bool IsRenderFollowPhysic = true;
+        private bool _isUsing = false;
 
         public Entity(EngineAccessor accessor)
         {
@@ -207,8 +209,25 @@ namespace DotAge.Core.Model
             return false;
         }
 
-        public virtual void OnCrash(IPhysicEntity BeingCrashedEntity)
+        public virtual bool OnCrash(IPhysicEntity BeingCrashedEntity)
         {
+            return true;
+        }
+
+        public virtual void OnHealthChange(float deltaHealth , Entity source)
+        {
+            if (GameProperty.Health >= 0)
+            {
+                GameProperty.Health += deltaHealth;
+                if (GameProperty.Health <= 0)
+                {
+                    if (source != null)
+                    {
+                        source.Kill(this);
+                        EngineAccess.RemoveEntity(this);
+                    }
+                }
+            }
 
         }
 
@@ -284,37 +303,31 @@ namespace DotAge.Core.Model
 
         public virtual bool Use()
         {
-            RayF SearchForward = new RayF(PhysicProperty.CrashBox.Center , PhysicProperty.FaceForward);
-            var ret = EngineAccess?.GetLineIndex(SearchForward, GameProperty.UseRange);
-            foreach (var index in ret ?? [])
+            // Prevent re-entrant Use calls which can cause infinite recursion when
+            // BeUse implementations call back into Use on other entities.
+            // Use a per-entity guard so nested Use/BeUse calls terminate safely.
+            // If already in a Use call, short-circuit.
+            if (_isUsing)
             {
-                if (index != null && index != this)
+                return false;
+            }
+            _isUsing = true;
+            try
+            {
+                RayF SearchForward = new RayF(PhysicProperty.CrashBox.Center , PhysicProperty.FaceForward);
+                var ret = EngineAccess?.GetLineIndex(SearchForward, GameProperty.UseRange);
+                foreach (var entity in ret)
                 {
-                    index.BeUse(this);
+                    if (entity != null && entity != this)
+                    {
+                        entity.BeUse(this);
+                    }
                 }
             }
-            
-            /*
-            if (ret.Count != 0)
+            finally
             {
-                if (ret.First() == this)
-                {
-                    if (ret.Count == 1)
-                    {
-                        return false;
-                    }
-                    else
-                    {
-                        ret.RemoveAt(0);
-                    }
-                }
-                
-                var target = ret.First();
-                if (target.BeUse(this) == true)
-                {
-                    return true;
-                }
-            }*/
+                _isUsing = false;
+            }
             return false;
         }
 
@@ -370,7 +383,6 @@ namespace DotAge.Core.Model
             PhysicProperty.Size = new Vector2(32, 32);
             
         }
-
     }
 
     class CityEntity : Entity
@@ -384,6 +396,8 @@ namespace DotAge.Core.Model
 
     class Soildre : Creature
     {
+        public int BeAttackTime = 0;
+
         public Soildre(EngineAccessor accessor) : base(accessor)
         {
             PhysicProperty.IsSoild = true;
@@ -394,7 +408,13 @@ namespace DotAge.Core.Model
         public override bool Update()
         {
             base.Update();
-            
+            if (EngineAccess != null)
+            {
+                if (EngineAccess.GetGameTime() - BeAttackTime > 10)
+                {
+                    RenderProperty.Sprite.BaseProperty.TintColor = Color.White;
+                }
+            }
             if (PhysicProperty.IsMoving == true)
             {
                 (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(36, 32));
@@ -406,6 +426,13 @@ namespace DotAge.Core.Model
                 (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(32, 32));
             }
             return true;
+        }
+
+        public override void OnHealthChange(float delta , Entity source)
+        {
+            RenderProperty.Sprite.BaseProperty.TintColor = Color.Red;
+            BeAttackTime = EngineAccess.GetGameTime();
+            base.OnHealthChange(delta , source);
         }
     }
 
@@ -421,19 +448,23 @@ namespace DotAge.Core.Model
     public class Zombie : Creature
     {
         public Entity Target = null;
+        public int AttackInterval = 75;
+        public int LastAttackTime = 0;
+        public int AttackTime = 25;
+
         public Zombie(EngineAccessor accessor) : base(accessor)
         {
             RenderProperty.LoadTexture("TV_Normal");
 
         }
 
-        public override void OnCrash(IPhysicEntity _entity)
+        public override bool OnCrash(IPhysicEntity _entity)
         {
             if (_entity is Soildre == true)
             {
                 (_entity as Soildre).GameProperty.ModifyHealth(-0f , this);
             }
-            base.OnCrash(_entity);
+            return base.OnCrash(_entity);
         }
         
         public override bool Update()
@@ -449,8 +480,30 @@ namespace DotAge.Core.Model
             else
             {
                 (PhysicProperty as PhysicEntity).Pioneer.UpdateDirect(Target.PhysicProperty.Position - PhysicProperty.Position);
+                if( EngineAccess.GetGameTime() - LastAttackTime >= AttackTime)
+                {
+                    RenderProperty.LoadTexture("TV_Normal");
+                }
+                if (EngineAccess.GetGameTime() - LastAttackTime >= AttackInterval)
+                {
+                    int t = 0;
+                    GetRangeEntity().Where(entity => entity.GetType() == typeof(Soildre) || entity.GetType() == typeof(Wall)).ToList().ForEach(entity =>
+                    {
+                        if ((entity.PhysicProperty.Position - PhysicProperty.Position).Length() <= 40)
+                        {
+                            entity.OnHealthChange(-10f, this);
+                            t++;
+                        }
+                    });
+                    if (t > 0)
+                    {
+                        LastAttackTime = EngineAccess.GetGameTime();
+                        RenderProperty.LoadTexture("TV_Bad");
+                        EngineAccess.PlaySoundEffect("hit");
+                    }
+
+                }
             }
-            
             return base.Update();
         }
 
@@ -511,16 +564,17 @@ namespace DotAge.Core.Model
                         PhysicProperty = new PhysicEntity()
                         {
                             Position = this.PhysicProperty.Position,
-                            SpeedLength = 5f,
+                            SpeedLength = 0.05f,
                             Size = new Vector2(8, 8),
                             Pioneer = new Pioneer()
                             {
-                                Direct = Vector2.Normalize(AttackTarget.PhysicProperty.Position - this.PhysicProperty.Position)
+                                Direct = Vector2.Normalize(AttackTarget.PhysicProperty.CrashBox.Center - this.PhysicProperty.Position)
                             }
                         },
                     };
 
                     CreateChildEntity(bullet);
+                    EngineAccess.PlaySoundEffect("shoot");
                 }
             }
             return base.Update();
@@ -593,11 +647,11 @@ namespace DotAge.Core.Model
             PhysicProperty.SpeedLength = 0.5f;
         }
 
-        public override void OnCrash(IPhysicEntity entity)
+        public override bool OnCrash(IPhysicEntity entity)
         {
             if (entity is Zombie)
             {
-                (entity as Zombie).GameProperty.ModifyHealth(-Damage , this);
+                (entity as Zombie).OnHealthChange(-Damage , this);
                 PierceCount--;
                 if (PierceCount <= 0)
                 {
@@ -612,7 +666,7 @@ namespace DotAge.Core.Model
             {
 
             }
-            base.OnCrash(entity); 
+            return base.OnCrash(entity); 
         }
 
         public override bool Update()
@@ -643,7 +697,7 @@ namespace DotAge.Core.Model
             base.Dig();
         }
 
-        public override void OnCrash(IPhysicEntity BeingCrashedEntity)
+        public override bool OnCrash(IPhysicEntity BeingCrashedEntity)
         {
             if (BeingCrashedEntity is Soildre)
             {
@@ -651,9 +705,10 @@ namespace DotAge.Core.Model
                 EngineAccess?.RemoveEntity(this);
             }
 
-            base.OnCrash(BeingCrashedEntity);
+            return base.OnCrash(BeingCrashedEntity);
         }
     }
+
 
     class Door : Entity
     {

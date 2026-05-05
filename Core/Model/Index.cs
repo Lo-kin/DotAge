@@ -34,6 +34,18 @@ namespace DotAge.Core.Model
             }
         }
 
+        public bool CheckPoint(Point point)
+        {
+            if (IndexRange.Contains(point))
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
         public bool UpdateIndex(out List<Entity> OutIndexEntity, out List<IPhysicEntity> OutIndexCrashBox, out List<IRenderEntity> OutIndexRender, out List<IGameEntity> OutIndexTrigger)
         {
             OutIndexEntity = [.. EntityIndex.Where(e => !IndexRange.Contains(e.PhysicProperty.CrashBox))];
