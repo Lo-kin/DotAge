@@ -71,8 +71,9 @@ namespace DotAge.Core.Model
     public interface IPhysicEntity
     {
         PhysicBase PhysicProperty { get; set; }
+        public Func<IPhysicEntity, bool> OnCrash { get; set; }
 
-        public abstract bool OnCrash(IPhysicEntity physicEntity);
+        public bool Crashed(IPhysicEntity physicEntity) => OnCrash?.Invoke(physicEntity) ?? false;
     }
 
     public interface IRenderEntity
@@ -96,17 +97,7 @@ namespace DotAge.Core.Model
         }
     }
 
-    class AbstructPhysicEntity : IPhysicEntity
-    {
-        public PhysicBase PhysicProperty { get; set; }
-
-        public bool OnCrash(IPhysicEntity physicEntity)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public class Entity : IPhysicEntity, IRenderEntity, IGameEntity , IIndexable
+    public class Entity : IPhysicEntity, IRenderEntity, IGameEntity
     {
         public int ID = -1;
         public EngineAccessor EngineAccess = null;
@@ -142,11 +133,6 @@ namespace DotAge.Core.Model
             {
                 OnCrash(pb);
             };
-        }
-
-        public Type GetEntityType(EngineAccessor accessor)
-        {
-            return GetType();
         }
 
         public virtual bool Update()//整合更新安排的事件
@@ -303,10 +289,6 @@ namespace DotAge.Core.Model
 
         public virtual bool Use()
         {
-            // Prevent re-entrant Use calls which can cause infinite recursion when
-            // BeUse implementations call back into Use on other entities.
-            // Use a per-entity guard so nested Use/BeUse calls terminate safely.
-            // If already in a Use call, short-circuit.
             if (_isUsing)
             {
                 return false;

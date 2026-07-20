@@ -16,5 +16,8 @@ namespace DotAge.Core.View
         public static float ChunkWidth { get; set; } = 1024f;
         public static float ChunkHeight { get; set; } = 1024f;
         public static Vector2 ChunkSize { get { return new Vector2(ChunkWidth, ChunkHeight); } }
+
+        public static float LoadEntityRange { get; set; } = 500f;
+        public static float LoadChunkRange { get; set; } = 3f;
     }
 }

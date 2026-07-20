@@ -1,25 +1,15 @@
 ﻿using DotAge.Core.Control;
-using DotAge.Core.Model.Economy;
-using DotAge.Core.Tools;
 using DotAge.Core.View;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Content;
-using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.ComponentModel.Design;
-using System.IO;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace DotAge.Core.Model
 {
     public interface ILocation
     {
+        public Func<Vector2, bool> OnUpdatePosition { get; set; }
+        public Func<Vector2, bool> OnUpdateSize { get; set; }
         public Vector2 Position { get; set; }
         public Vector2 Size { get; set; }
         public RectF CrashBox { get { return new RectF(Position, Size); } }
@@ -33,6 +23,21 @@ namespace DotAge.Core.Model
             else
             {
                 Position = NewPosition;
+                OnUpdatePosition?.Invoke(Position);
+                return true;
+            }
+        }
+
+        public bool DeltaPosition(Vector2 delta)
+        {
+            if (delta == Vector2.Zero || delta.X == float.NaN || delta.Y == float.NaN)
+            {
+                return false;
+            }
+            else
+            {
+                Position += delta;
+                OnUpdatePosition?.Invoke(Position);
                 return true;
             }
         }
@@ -46,15 +51,78 @@ namespace DotAge.Core.Model
             else
             {
                 Size = NewSize;
+                OnUpdateSize?.Invoke(Size);
                 return true;
             }
         }
     }
 
-    interface IClick
+
+    public interface IPhysic : ILocation
     {
-        ZoneEntity ClickZone { get; set; }
-        ItemInformation? OnClick();
+        public Func<Vector2 , bool> OnUpdateForce { get; set; }
+        public Func<IPhysic , bool> OnCrash { get; set; }
+        public Vector2 LastPosition { get; set; }
+        public Vector2 Speed { get; set; }
+        public Vector2 Accelerate { get; set; }
+        public float Mass { get; set; }
+        public Vector2 FaceForward { get; set; }
+
+        public Vector2 WishForward { get; set; }
+        public RectF WishRange
+        {
+            get
+            {
+                return RectF.ExpandRectangel(CrashBox, WishForward);
+            }
+        }
+        public RectF WishDestination
+        {
+            get
+            {
+                return new RectF(Position + WishForward, Size);
+            }
+        }
+        public Vector2 UpdateWish()
+        {
+            Speed += Accelerate * Engine.GameTickSecend;
+            if (Speed.X != float.NaN && Speed.Y != float.NaN && Speed != Vector2.Zero && Speed != Vector2.Zero)
+            {
+                Vector2 TickMove = Speed * Engine.GameTickSecend;
+                OnUpdatePosition?.Invoke(Position + TickMove);
+                return TickMove;   
+            }
+            return Vector2.Zero;
+        }
+
+
+
+        public bool AddForce(Vector2 Force)
+        {
+            if (Force == Vector2.Zero || float.IsNaN(Force.X) || float.IsNaN(Force.Y))
+            {
+                return false;
+            }
+            else
+            {
+                Accelerate += Force / Mass;
+                OnUpdateForce?.Invoke(Force);
+                return true;
+            }
+        }
+
+        public bool Crash(IPhysic physic)
+        {
+            if (RectF.IsContain(this.CrashBox, physic.CrashBox))
+            {
+                OnCrash?.Invoke(physic);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
     }
 
     public class Location : ILocation
@@ -68,6 +136,10 @@ namespace DotAge.Core.Model
                 return new RectF(Position, Size);
             }
         }
+
+        public Func<Vector2, bool> OnUpdatePosition { get ; set; }
+        public Func<Vector2, bool> OnUpdateSize { get; set; }
+
         public Location(Vector2 position , Vector2 size)
         {
             Position = position;
@@ -81,153 +153,74 @@ namespace DotAge.Core.Model
         }
     }
 
+    interface IClick
+    {
+        ZoneEntity ClickZone { get; set; }
+        ItemInformation? OnClick();
+    }
+
     public class GameEntity
     {
+        public Func<float , bool> OnHealthSet { get; set; }
+        public Func<float , bool> OnDie { get; set; }
+        public Func<float, bool> OnMoneyChange { get; set; }
         public bool IsAlive { get { return Health > 0; } }
         public float LastHealth = 100f;
         public float Health = 100f;
         public float MaxHealth = 500f;
 
-        public List<Entity> KilledEntity = new List<Entity>();
-        public Entity BeingKilledEntity = null;
-
-        public Vector2 FaceForward = Vector2.UnitX;
         public string Name { get; set; }
-        public bool Visibility { get; set; } = true;
-        public bool IsRenderFollowCrashbox { get; set; } = false;
 
         public float Money = 100f;
-        public Dictionary<Type, int> ProductCount = new Dictionary<Type, int>();
-
-        public int SkillPoint = 0;
-        public int PierceCount = 1;
-        public int Damage = 9;
 
         public int Sight = 300;
-        public float LoadEntityRange = 500f;
-        public float LoadChunkRange = 3f;
+
         public float UseRange = 200f;
         public List<IRenderEntity> SeekedEntitites = new List<IRenderEntity>();
 
         public ZoneEntity Trigger = new(new Location(Vector2.Zero , Vector2.Zero) , TwoStatus.Active);
-
-        public string GetProductCount
-        {
-            get
-            {
-                return string.Join("\n", ProductCount.Select(x => x.Key.Name + " : " + x.Value.ToString()));
-            }
-        }
 
         public GameEntity()
         {
 
         }
 
-        public bool SetFaceForward(Vector2 _faceForward)
-        {
-            if (_faceForward == Vector2.Zero || float.IsNaN(_faceForward.X) || float.IsNaN(_faceForward.Y))
-            {
-                return false;
-            }
-            else
-            {
-                FaceForward = Vector2.Normalize(_faceForward);
-                return true;
-            }
-        }
-
-        public float SetHealth(float _health, Entity Source)
+        public float SetHealth(float health)
         {
             LastHealth = Health;
-            Health = _health;
-            if (Health < 0)
+            Health = health;
+            OnHealthSet?.Invoke(Health);
+            if (Health <= 0)
             {
-                BeingKilledEntity = Source;
+                OnDie?.Invoke(Health);
             }
-            //HealthSetEvent?.Invoke(Health , MaxHealth);
             return Health;
         }
 
-        public float ModifyHealth(float _health, Entity Source)
+        public float ModifyHealth(float health)
         {
-            if (Health + _health > MaxHealth)
+            if (Health + health > MaxHealth)
             {
-                _health = MaxHealth - Health;
+                health = MaxHealth - Health;
             }
-            SetHealth(Health + _health, Source);
+            SetHealth(Health + health);
             return Health;
         }
 
         public float ModifyMoney(float _money)
         {
             Money += _money;
+            OnMoneyChange?.Invoke(Money);
             return Money;
         }
 
-        public bool Buy(Product _product, ProductValue _price)
-        {
-            if (Money < _price.Price)
-            {
-                return false;
-            }
-            else
-            {
-                Money -= _price.Price;
-                if (ProductCount.ContainsKey(_product.GetType()) == false)
-                {
-                    ProductCount.Add(_product.GetType(), 1);
-                }
-                else
-                {
-                    ProductCount[_product.GetType()]++;
-                }
-                return true;
-            }
-        }
-
-        public bool Sale(Product _product, ProductValue _price)
-        {
-            if (ProductCount.ContainsKey(_product.GetType()) == false)
-            {
-                return false;
-            }
-            else
-            {
-
-                if (ProductCount[_product.GetType()] <= 0)
-                {
-                    return false;
-                }
-                Money += _price.Price;
-                ProductCount[_product.GetType()]--;
-                return true;
-            }
-        }
     }
 
-    public class LerpRenderEntity : RenderEntity
+    public class LerpRenderEntity : IRender
     {
-        public LerpSprite LoadAsLerp
-        {
-            get
-            {
-                if (Sprite is LerpSprite)
-                {
-                    return Sprite as LerpSprite;
-                }
-                else
-                {
-                    return null;
-                }
-            }
-            set
-            {
-                Sprite = value;
-            }
-        }
+        public Sprite Sprite { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-        public LerpRenderEntity() : base()
+        public LerpRenderEntity()
         {
             Sprite = new LerpSprite(new TextureRenderProperty(), new TextureRenderProperty(), 1);//per 1 tick do lerp
             Sprite.BaseProperty.Position = Vector2.Zero;
@@ -259,17 +252,18 @@ namespace DotAge.Core.Model
         }
     }
 
-    public class RenderEntity
+    interface IRender
     {
-        public Sprite Sprite = new TextureSprite();
+        public Sprite Sprite { get; set; }
 
+        /*
         public RenderEntity()
         {
             var sprite = new TextureSprite();//per 1 tick do lerp
             sprite.BaseProperty.Position = Vector2.Zero;
             (sprite.BaseProperty as TextureRenderProperty).Size = new Vector2(32, 32);
             Sprite = sprite;
-        }
+        }*/
 
         public virtual bool UpdatePosition(Vector2 Position)
         {
@@ -297,7 +291,7 @@ namespace DotAge.Core.Model
     }
 
 
-    public class AnimationProperty : RenderEntity
+    public class AnimationProperty : IRender
     {
         public Animation Animation = new Animation();
 
@@ -312,42 +306,7 @@ namespace DotAge.Core.Model
         }
     }
 
-    public class PhysicEntity : PhysicBase
-    {
-        public Path PathNodes { get; set; } = new Path();
-        public Pioneer Pioneer { get; set; } = new Pioneer();
-        public Vector2 Force = new Vector2();//m^2/ms
-
-        public PhysicEntity()
-        {
-
-        }
-
-        public override bool UpdateWish(Vector2 Fiction = new Vector2(), int Tick = 10)
-        {
-            WishForward += Pioneer.Update(Tick , SpeedLength);
-            return base.UpdateWish();
-        }
-
-        public override bool UpdatePosition()
-        {
-            return base.UpdatePosition();
-        }
-
-        public static Vector2 Crash()
-        {
-            return new Vector2();
-        }
-    }
-
-    public class LocationEntity : PhysicBase
-    {
-        public LocationEntity()
-        {
-        }
-    }
-
-    public abstract class PhysicBase : ILocation
+    public abstract class PhysicEntity : IPhysic
     {
         public Vector2 LastPosition { get; set; } = Vector2.Zero;
         public Vector2 _position = Vector2.Zero;
@@ -361,12 +320,10 @@ namespace DotAge.Core.Model
             }
         }
         public Vector2 WishForward = Vector2.Zero;
-        public float SpeedLength { get; set ; } = 0.1f;
-        public Vector2 SpeedForward { get; set; } = Vector2.Zero;
         public RectF WishRange
         {
             get
-            {
+            {  
                 return RectF.ExpandRectangel(CrashBox, WishForward);
             }
         }
@@ -377,7 +334,7 @@ namespace DotAge.Core.Model
                 return new RectF(Position + WishForward, Size);
             }
         }
-        public Action<IPhysicEntity> OnCrashEvent;
+        
         public bool IsMoving { get; set; } = false;
         public bool IsSizeChanging { get; set; } = false;
         public bool IsSoild { get; set; } = false;
@@ -393,11 +350,20 @@ namespace DotAge.Core.Model
                 }
             } 
         }
+        public Vector2 Speed { get; set; }
+        public Vector2 Accelerate { get; set; }
+        public float Mass { get; set; }
+        public Func<IPhysicEntity, bool> OnCrashEvent { get; set; }
+        public Func<Vector2, bool> OnUpdatePosition { get; set ; }
+        public Func<Vector2, bool> OnUpdateSize { get ; set ; }
+        public Func<Vector2, bool> OnDeltaPosition { get ; set ; }
+        public Func<Vector2, bool> OnUpdateForce { get ; set ; }
+        public Func<IPhysic, bool> OnCrash { get; set; }
 
-        public virtual bool MoveForward(Vector2 _vec)
+        public PhysicEntity()
         {
-            WishForward += _vec;
-            return true;
+            OnDeltaPosition += (vec) => {WishForward += vec; return true; };
+
         }
 
         public virtual bool UpdatePosition()
@@ -414,36 +380,6 @@ namespace DotAge.Core.Model
             WishForward = Vector2.Zero;
             return true;
         }
-
-        public virtual bool SetPosition(Vector2 _pos)
-        {
-            Position = _pos;
-            return true;
-        }
-
-        public virtual bool UpdateWish(Vector2 Fiction = default, int Tick = 10)
-        {
-            WishForward += (SpeedForward * SpeedLength * Tick);
-            return true;
-        }
-
-        public virtual bool Crash(IPhysicEntity physicBase)
-        {
-            if (RectF.IsContain(this.CrashBox, physicBase.PhysicProperty.CrashBox))
-            {
-                OnCrashEvent(physicBase);
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-    }
-
-    class BaseStorage
-    {
-
     }
 
     public class ZoneEntity

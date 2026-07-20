@@ -26,6 +26,8 @@ namespace DotAge.Core.Control
         public bool OverModifyRenderProperty = false;
 
         public const int GameTick = 20;//per 1000 / 20 = 50 Frames/s
+        public const int FramePerSecend = 1000 / GameTick;
+        public const float GameTickSecend = GameTick / 1000f;
         public DateTime StartTime { get; set; } = DateTime.Now;
         public DateTime LastTickTime { get; set; } = DateTime.Now;
         public DateTime CurrentTime { get { return DateTime.Now; } }
@@ -252,7 +254,7 @@ namespace DotAge.Core.Control
                         {
                             break;
                         }
-                        Entity UpdateEntity = LoadRangeEntity[i];
+                        IPhysicEntity UpdateEntity = LoadRangeEntity[i];
                         if (UpdateEntity.PhysicProperty.Size == Vector2.Zero)
                         {
                             continue;
@@ -275,8 +277,8 @@ namespace DotAge.Core.Control
                             {
                                 if (RectF.IsContain(UpdateEntity.PhysicProperty.WishDestination, BeingUpdateEntity.PhysicProperty.WishDestination))
                                 {
-                                    UpdateEntity.OnCrash(BeingUpdateEntity);
-                                    BeingUpdateEntity.OnCrash(UpdateEntity);
+                                    UpdateEntity.Crashed(BeingUpdateEntity);
+                                    BeingUpdateEntity.Crashed(UpdateEntity);
                                 }
                                 if (UpdateEntity.PhysicProperty.IsSoild && BeingUpdateEntity.PhysicProperty.IsSoild)
                                 {
@@ -307,9 +309,7 @@ namespace DotAge.Core.Control
                                         UpdateEntity.PhysicProperty.WishForward += (rate * b_sign * CrossVec);
                                         BeingUpdateEntity.PhysicProperty.WishForward += ((1 - rate) * b_sign * CrossVec);
                                     }
-
                                 }
-
                             }
                         }
                         if (UpdateEntity is Soildre)
