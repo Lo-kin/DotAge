@@ -19,10 +19,14 @@ namespace DotAge.Core.Control
         public static Dictionary<Keys , KeyState> NowKeyStat = new Dictionary<Keys , KeyState>();
         public static MouseState LastMouseStat = new MouseState();
         public static MouseState NowMouseStat = new MouseState();
-        public static Dictionary<MouseButton , TwoStat> ChangeMouseStat = new Dictionary<MouseButton, TwoStat>();
-        public static Dictionary<Keys , TwoStat> ChangeKeyStat = new Dictionary<Keys, TwoStat>();
+        public static Dictionary<MouseButton , TwoStatus> ChangeMouseStat = new Dictionary<MouseButton, TwoStatus>();
+        public static Dictionary<Keys , TwoStatus> ChangeKeyStat = new Dictionary<Keys, TwoStatus>();
 
-        public static List<string> Log = new List<string>();
+        public static PhysicBase MouseEntity = new LocationEntity()
+        {
+            Position = Vector2.Zero,
+            Size = new Vector2(1, 1),
+        };
         public static Point CurrentMapMousePosition
         { 
             get
@@ -48,12 +52,16 @@ namespace DotAge.Core.Control
         {
             LastMouseStat = NowMouseStat;
             NowMouseStat = Mouse.GetState();
+            MouseEntity.Position = CurrentMousePosition.ToVector2();
             foreach (var item in Enum.GetValues(typeof(MouseButton)))
             {
                 ChangeMouseStat[(MouseButton)item] = GetMouseChangeStat((MouseButton)item);
             }
 
-            LastKeyStat = NowKeyStat;
+            foreach (var item in Enum.GetValues(typeof(Keys)))
+            {
+                LastKeyStat[(Keys)item] = NowKeyStat.ContainsKey((Keys)item) ? NowKeyStat[(Keys)item] : KeyState.Up;
+            }
             NowKeyStat.Clear();
             foreach (var item in Enum.GetValues(typeof(Keys)))
             {
@@ -70,71 +78,75 @@ namespace DotAge.Core.Control
             }
         }
 
-        public static TwoStat GetMouseChangeStat(MouseButton button)
+        public static TwoStatus GetMouseChangeStat(MouseButton button)
         {
             switch (button)
             {
                 case MouseButton.Left:
                     if (NowMouseStat.LeftButton - LastMouseStat.LeftButton == -1)
                     {
-                        return TwoStat.ActiveToFreeze;
+                        return TwoStatus.ActiveToFreeze;
                     }
                     else if (NowMouseStat.LeftButton - LastMouseStat.LeftButton == 1)
                     {
-                        return TwoStat.FreezeToActive;
+                        return TwoStatus.FreezeToActive;
                     }
                     else
                     {
-                        return (TwoStat)NowMouseStat.LeftButton;
+                        return (TwoStatus)NowMouseStat.LeftButton;
                     }
                 case MouseButton.Right:
                     if (NowMouseStat.RightButton - LastMouseStat.RightButton == -1)
                     {
-                        return TwoStat.ActiveToFreeze;
+                        return TwoStatus.ActiveToFreeze;
                     }
                     else if (NowMouseStat.RightButton - LastMouseStat.RightButton == 1)
                     {
-                        return TwoStat.FreezeToActive;
+                        return TwoStatus.FreezeToActive;
                     }
                     else
                     {
-                        return (TwoStat)NowMouseStat.RightButton;
+                        return (TwoStatus)NowMouseStat.RightButton;
                     }
                 case MouseButton.Middle:
                     if (NowMouseStat.MiddleButton - LastMouseStat.MiddleButton == -1)
                     {
-                        return TwoStat.ActiveToFreeze;
+                        return TwoStatus.ActiveToFreeze;
                     }
                     else if (NowMouseStat.MiddleButton - LastMouseStat.MiddleButton == 1)
                     {
-                        return TwoStat.FreezeToActive;
+                        return TwoStatus.FreezeToActive;
                     }
                     else
                     {
-                        return (TwoStat)NowMouseStat.MiddleButton;
+                        return (TwoStatus)NowMouseStat.MiddleButton;
                     }
                 default:
-                    return TwoStat.None;
+                    return TwoStatus.None;
             }
         }
         
-        public static TwoStat GetKeyChangeStat(Keys key)
+        public static TwoStatus GetKeyChangeStat(Keys key)
         {
             if (NowKeyStat[key] == KeyState.Down && LastKeyStat[key] == KeyState.Up)
             {
-                return TwoStat.FreezeToActive;
+                return TwoStatus.FreezeToActive;
             }
             else if (NowKeyStat[key] == KeyState.Up && LastKeyStat[key] == KeyState.Down)
             {
-                return TwoStat.ActiveToFreeze;
+                return TwoStatus.ActiveToFreeze;
             }
             else if (NowKeyStat[key] == KeyState.Down && LastKeyStat[key] == KeyState.Down)
             {
-                return TwoStat.Active;
+                return TwoStatus.Active;
+            }
+            else if (NowKeyStat[key] == KeyState.Up && LastKeyStat[key] == KeyState.Up)
+            {
+                return TwoStatus.Freeze;
             }
             else
             {
-                return TwoStat.Freeze;
+                return TwoStatus.None;
             }
         }
     }
@@ -149,7 +161,7 @@ namespace DotAge.Core.Control
         X2 = 5
     }
 
-    public enum TwoStat//双状态在此为：冻结和激活；延伸出的状态有：冻结到激活和激活到冻结
+    public enum TwoStatus//双状态在此为：冻结和激活；延伸出的状态有：冻结到激活和激活到冻结
     {
         None = -1,
         Freeze = 0,

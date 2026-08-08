@@ -8,7 +8,7 @@ using Microsoft.Xna.Framework;
 
 namespace DotAge.Core.Model
 {
-    internal class Path
+    public class Path
     {
         private List<Vector2> Nodes = new List<Vector2>();
         public List<Vector2> GetNodes { get { return Nodes; } }
@@ -144,6 +144,59 @@ namespace DotAge.Core.Model
             if (Index >= 0 && Index <= Nodes.Count - 1)
             {
                 Nodes.RemoveAt(Index);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
+
+    public class Pioneer
+    {
+        public Vector2 Direct = Vector2.Zero;
+        public Vector2 Update(int Tick , float Speed)//ms
+        {
+            return Direct * Speed * Tick;
+        }
+        public bool UpdateDirect(Vector2 NewDirect)
+        {
+            if (NewDirect.X != float.NaN && NewDirect.Y != float.NaN)
+            {
+                if (NewDirect.X == float.NegativeInfinity || NewDirect.X == float.PositiveInfinity || NewDirect.Y == float.NegativeInfinity || NewDirect.Y == float.PositiveInfinity)
+                {
+                    Vector2 tmp = Vector2.Zero;
+                    if (NewDirect.X == float.NegativeInfinity || NewDirect.X == float.PositiveInfinity)
+                    {
+                        tmp.X = MathF.Sign(NewDirect.X);
+                    }
+                    else
+                    {
+                        tmp.X = 0;
+                    }
+                    if (NewDirect.Y == float.NegativeInfinity || NewDirect.Y == float.PositiveInfinity)
+                    {
+                        tmp.Y = MathF.Sign(NewDirect.Y);
+                    }
+                    else
+                    {
+                        tmp.Y = 0;
+                    }
+                    Direct = Vector2.Normalize(NewDirect);
+                }
+                else
+                {
+                    if (NewDirect.X == 0 && NewDirect.Y == 0)
+                    {
+                        Direct = NewDirect;
+                    }
+                    else
+                    {
+                        Direct = Vector2.Normalize(NewDirect);
+                    }
+                }
+
                 return true;
             }
             else

@@ -44,6 +44,18 @@
 /processorParam:TextureFormat=Compressed
 /build:File.spritefont;Default.spritefont
 
+#begin hit.mp3
+/importer:Mp3Importer
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:hit.mp3
+
+#begin shoot.mp3
+/importer:Mp3Importer
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:shoot.mp3
+
 #begin Status.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -55,4 +67,10 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:Status.png
+
+#begin wood.mp3
+/importer:Mp3Importer
+/processor:SoundEffectProcessor
+/processorParam:Quality=Best
+/build:wood.mp3
 

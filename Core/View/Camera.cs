@@ -11,7 +11,8 @@ namespace DotAge.Core.View
     {
         public int ID { get; set; }
         public string Name { get; set; }
-        public Vector2 Position { get; set; }
+        public Vector2 _position = new Vector2(0, 0);
+        public Vector2 Position { get { return _position; } set {_position = value; View.Translation = new Vector3(Position, 0); } }
         public Point ScreenSize { get; set; }
         public Matrix View;
         public float Zoom { get; set; }
@@ -33,7 +34,6 @@ namespace DotAge.Core.View
         public void Move(Vector2 delta)
         {
             Position += delta;
-            View.Translation = new Vector3(Position, 0);
         }
         public void ChangeZoom(float amount)
         {

@@ -6,55 +6,66 @@ using System.Threading.Tasks;
 
 namespace DotAge.Core.View
 {
-    internal class Animation
+    public class Animation
     {
-        public int ID { get; set; }
-        public string Name { get; set; }
-        public string Path { get; set; }
-        public int FrameCount { get; set; }
-        public int FrameWidth { get; set; }
-        public int FrameHeight { get; set; }
-        public int FrameRate { get; set; }
-        public bool Loop { get; set; }
-        public bool IsPlaying { get; set; }
-        public int CurrentFrame { get; set; }
-        public Animation(string name, string path, int frameCount, int frameWidth, int frameHeight, int frameRate, bool loop)
+        public string Name { get; set; } = "Default";
+        public List<TextureRegion> Frames;
+        public int FrameIntervalTick = 10;
+        
+        public int LastChangeTick = 0;
+
+        public int _currentFramePosition = 0;
+        public int CurrentFramePosition
         {
-            Name = name;
-            Path = path;
-            FrameCount = frameCount;
-            FrameWidth = frameWidth;
-            FrameHeight = frameHeight;
-            FrameRate = frameRate;
-            Loop = loop;
-            IsPlaying = false;
-            CurrentFrame = 0;
-        }
-        public void Play()
-        {
-            IsPlaying = true;
-        }
-        public void Stop()
-        {
-            IsPlaying = false;
-        }
-        public void Update()
-        {
-            if (IsPlaying)
+            get
             {
-                CurrentFrame++;
-                if (CurrentFrame >= FrameCount)
+                return _currentFramePosition;
+            }
+            set
+            {
+                if (Frames.Count < value && value >= 0)
                 {
-                    if (Loop)
-                    {
-                        CurrentFrame = 0;
-                    }
-                    else
-                    {
-                        Stop();
-                    }
+                    _currentFramePosition = value;
                 }
             }
+        }
+
+        public TextureRegion CurrentFrame 
+        {
+            get
+            {
+                if (CurrentFramePosition >= 0 && CurrentFramePosition < Frames.Count)
+                {
+                    return Frames[CurrentFramePosition];
+                }
+                else
+                {
+                    CurrentFramePosition = 0;
+                    return null;
+                }
+            }
+            set
+            {
+                if (CurrentFramePosition >= 0 && CurrentFramePosition < Frames.Count)
+                {
+                    Frames[CurrentFramePosition] = value;
+                }
+            }
+        }
+
+        public Animation()
+        {
+
+        }
+
+        public bool Update(int CurrentTick)
+        {
+            if (CurrentTick >= LastChangeTick + FrameIntervalTick)
+            {
+                CurrentFramePosition += (int)((CurrentTick - LastChangeTick) / FrameIntervalTick);
+            }
+
+            return true;
         }
     }
 }

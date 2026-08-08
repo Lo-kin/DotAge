@@ -14,407 +14,36 @@ using System.Diagnostics.SymbolStore;
 
 namespace DotAge.Core.View
 {
-    public struct RenderProperty
+    public class TextureProperty
     {
-        public Vector2 Offset = new Vector2();
-        public Vector2 ActualPosition = new Vector2();
-        public Vector2 RenderPosition { get { return Offset + ActualPosition; } }
-
-        public string Text = string.Empty;
-        public int FontSize = 16;
-
-        public Vector2 Size = new Vector2();
-        public Vector2 _RBPosition = new Vector2();
-        public Color TintColor = Color.White;
-        public int RenderOrder = -1;
-        public (int , Rectangle?) RenderTexture = (0 , null);
-        public bool Visibility = false;
-        public bool Init = false;
-        public bool PropertyChanged = false;
-        public bool IsFixed = false;
-
-        public bool IsShowText = false;
-        public bool IsShowTexture = false;
-
-        public RenderProperty(Vector2 _position, Vector2 _size)
-        {
-            Offset = _position;
-            Size = _size;
-            _RBPosition = Offset + Size;
-            Init = true;
-        }
-
-        public RenderProperty(bool _init = true,bool _isShowTexture = true , bool _isShowText = true , bool _visibility = true , Color? _color = null)
-        {
-            Init = _init;
-            Visibility = _visibility;
-            IsShowTexture = _isShowTexture;
-            IsShowText = _isShowText;
-            if (_color != null)
-            {
-                TintColor = (Color)_color;
-            }
-            else
-            {
-                TintColor = Color.White;
-            }
-        }
-    }
-
-    public class RenderPropertyGroup
-    {
-        public RenderProperty[] RenderProperties = new RenderProperty[16];
-
-        public RenderPropertyGroup(int _renderCanvasCount = 16 , Vector2? _allCanvasSize = null , Vector2? _allCanvasPosition = null , int[] _initCanvas = null)
-        {
-            RenderProperties = new RenderProperty[_renderCanvasCount];
-            if (_initCanvas == null)
-            {
-                InitialAllCanvas();
-            }
-            else
-            {
-                InitialSpecificCanvas(_initCanvas);
-            }
-            
-            if (_allCanvasPosition != null)
-            {
-                SetAllPosition((Vector2)_allCanvasPosition);
-            }
-            if (_allCanvasSize != null)
-            {
-                SetAllSize((Vector2)_allCanvasSize);
-            }
-        }
-
-        public bool CheckVaild(int _canvasPosition)
-        {
-            if (_canvasPosition < 0 || _canvasPosition >= RenderProperties.Length)
-            {
-                return false;
-            }
-            else
-            {
-                return true;
-            }
-        }
-
-        public bool InitialAllCanvas()
-        {
-            for (int i = 0; i < RenderProperties.Length; i++)
-            {
-                InitialCanvas(i);
-            }
-            return true;
-        }
-
-        public bool InitialSpecificCanvas(int[] _canvasPositon)
-        {
-            foreach (var _canvasPosition in _canvasPositon)
-            {
-                if (CheckVaild(_canvasPosition) == false)
-                {
-                }
-                else
-                {
-                    InitialCanvas(_canvasPosition);
-                }
-            }
-            return true;
-        }
-
-        public bool InitialCanvas(int _canvasPosition)
-        {
-            if (CheckVaild(_canvasPosition) == false)
-            {
-                return false;
-            }
-            else
-            {
-                RenderProperties[_canvasPosition] = new RenderProperty()
-                {
-                    Init = true,
-                    Visibility = true,
-                    Text = "",
-                    TintColor = Color.White,
-                };
-                return true;
-            }
-            
-        }
-
-        public bool SetAllPosition(Vector2 _position)
-        {
-            for (int i = 0; i < RenderProperties.Length; i++)
-            {
-                SetPosition(i, _position);
-            }
-            return true;
-        }
-
-        public bool SetPosition(int _canvasPosition, Vector2 _position)
-        {
-            if (CheckVaild(_canvasPosition) == false)
-            {
-                return false;
-            }
-            else
-            {
-                RenderProperties[_canvasPosition].ActualPosition = _position;
-                RenderProperties[_canvasPosition].PropertyChanged = true;
-                return true;
-            }
-        }
-
-        public bool SetAllSize(Vector2 _size)
-        {
-            for (int i = 0; i < RenderProperties.Length; i++)
-            {
-                SetSize(i, _size);
-            }
-            return true;
-        }
-
-        public bool SetSize(int _canvasPosition, Vector2 _size)
-        {
-            if (CheckVaild(_canvasPosition) == false)
-            {
-                return false;
-            }
-            else
-            {
-                RenderProperties[_canvasPosition].Size = _size;
-                RenderProperties[_canvasPosition].PropertyChanged = true;
-                return true;
-            }
-        }
-
-        public bool SetOffset(int _canvasPosition, Vector2 _position)
-        {
-            if (CheckVaild(_canvasPosition) == false)
-            {
-                return false;
-            }
-            else
-            {
-                RenderProperties[_canvasPosition].Offset = _position;
-                RenderProperties[_canvasPosition].PropertyChanged = true;
-                return true;
-            }
-        }
-
-        public bool SetProperty(int _canvasPosition, RenderProperty _renderProperty)
-        {
-            if (CheckVaild(_canvasPosition) == false)
-            {
-                return false;
-            }
-            else
-            {
-                RenderProperties[_canvasPosition] = _renderProperty;
-                RenderProperties[_canvasPosition].PropertyChanged = true;
-                return true;
-            }
-        }
-
-        public bool SetFixed(int _canvasPosition , bool _isFixed)
-        {
-            if (CheckVaild(_canvasPosition) == false)
-            {
-                return false;
-            }
-            else
-            {
-                RenderProperties[_canvasPosition].IsFixed = _isFixed;
-                RenderProperties[_canvasPosition].PropertyChanged = true;
-                return true;
-            }
-        }
-
-        public bool SetAllFixed(bool _isFixed)
-        {
-            for (int i = 0; i < RenderProperties.Length; i++)
-            {
-                SetFixed(i, _isFixed);
-            }
-            return true;
-        }
-
-        public bool SetText(int _canvasPosition, string _text)
-        {
-            if (CheckVaild(_canvasPosition) == false)
-            {
-                return false;
-            }
-            else
-            {
-                RenderProperties[_canvasPosition].Text = _text;
-                RenderProperties[_canvasPosition].PropertyChanged = true;
-                return true;
-            }
-        }
-
-        public bool SetShowTextState(int _canvasPosition , bool _stat)
-        {
-            if (CheckVaild(_canvasPosition) == false)
-            {
-                return false;
-            }
-            else
-            {
-                RenderProperties[_canvasPosition].IsShowText = _stat;
-                return true;
-            }
-        }
-
-        public bool SetShowTextureState(int _canvasPosition, bool _stat)
-        {
-            if (CheckVaild(_canvasPosition) == false)
-            {
-                return false;
-            }
-            else
-            {
-                RenderProperties[_canvasPosition].IsShowTexture = _stat;
-                return true;
-            }
-        }
-
-        public bool SetAllTextState(bool _stat)
-        {
-            for (int i = 0; i < RenderProperties.Length; i++)
-            {
-                SetShowTextState(i, _stat);
-            }
-            return true;
-        }
-
-        public bool SetAllTextureState(bool _stat)
-        {
-            for (int i = 0; i < RenderProperties.Length; i++)
-            {
-                SetShowTextureState(i, _stat);
-            }
-            return true;
-        }
-
-        public bool SetTint(int _canvasPosition , Color _color)
-        {
-            if (CheckVaild(_canvasPosition) == false)
-            {
-                return false;
-            }
-            else
-            {
-                RenderProperties[_canvasPosition].TintColor = _color;
-                RenderProperties[_canvasPosition].PropertyChanged = true;
-                return true;
-            }
-        }
-
-        public bool SetAllTint(Color _color)
-        {
-            for (int i = 0; i < RenderProperties.Length; i++)
-            {
-                SetTint(i, _color);
-            }
-            return true;
-        }
-
-        public bool SetVisibility(int _canvasPosition, bool _visibility)
-        {
-            if (CheckVaild(_canvasPosition) == false)
-            {
-                return false;
-            }
-            else
-            {
-                RenderProperties[_canvasPosition].Visibility = _visibility;
-                RenderProperties[_canvasPosition].PropertyChanged = true;
-                return true;
-            }
-        }
-
-        public bool SetAllVisibility(bool _visibility)
-        {
-            for (int i = 0; i < RenderProperties.Length; i++)
-            {
-                SetVisibility(i, _visibility);
-            }
-            return true;
-        }
-    }
-
-    public struct ChainRenderProperty
-    {
-        public Vector2 StartChainpoint = new Vector2();
-        public Vector2 EndChainpoint = new Vector2();
-        public Vector2 ChainBox { get { return EndChainpoint - StartChainpoint; } }
-        public Vector2 ChainBoxSize { get { return new Vector2(ChainBox.X, ChainBox.Y); } }
-            
-        public ChainRenderProperty() 
-        {
-
-        }
-    }
-
-    public struct TextureProperty
-    {
+        public Texture2D Texture = null;
         public string Description = "";
-        public int TextureWidth = 0;
-        public int TextureHeight = 0;
         public int UnitWidth = 0;
         public int UnitHeight = 0;
-        public int WidthCount { get { return TextureWidth / UnitWidth; } }
-        public int HeightCount { get { return TextureHeight / UnitHeight; } }
-        public Rectangle[,] Textures = new Rectangle[,] { };
-        public Dictionary<string , Point> TextureNames = new Dictionary<string, Point>();
-        public TextureProperty(int _textureWidth , int _textureHeight , int _unitWidth , int _unitHeight)
+        public int WidthCount { get { return (Texture.Width - 1) / (UnitWidth + 1); } }
+        public int HeightCount { get { return (Texture.Height - 1) / (UnitHeight + 1); } }
+        public Dictionary<Point , TextureRegion> TextureRegions = new Dictionary<Point, TextureRegion>();
+
+        public TextureProperty(int _unitWidth , int _unitHeight , Texture2D loadTexture)
         {
-            TextureHeight = _textureHeight;
-            TextureWidth = _textureWidth;
             UnitHeight = _unitHeight;
             UnitWidth = _unitWidth;
+            Texture = loadTexture;
         }
 
-        public bool InitTextures()
+        public TextureRegion? GetTextureRegion(string name)
         {
-            Textures = new Rectangle[WidthCount, HeightCount];
-            return true;
+            return TextureRegions.Values.ToList().Find(x => x.Name == name);
         }
 
-        public Rectangle? GetTextureXY(int _width, int _height)
+        public TextureRegion? GetTextureRegion(Point pos)
         {
-            if (_height < 0 || _width < 0 || _height >= HeightCount || _width >= WidthCount)
-            {
-                return null;
-            }
-            else
-            {
-                return Textures[_width, _height];
-            }
+            return TextureRegions[pos];//不需要保护？
         }
 
-        public Rectangle? GetTextureX(int _x)
+        public bool CheckNameVaild(string name)
         {
-            return GetTextureXY(_x % WidthCount, (int)MathF.Floor(_x / WidthCount));
-        }
-
-        public Rectangle? GetTextureByName(string name)
-        {
-            if (TextureNames.ContainsKey(name))
-            {
-                return GetTextureXY(TextureNames[name].X, TextureNames[name].Y);
-            }
-            else
-            {
-                return null;
-            }
-        }
-
-        public bool CheckIndexVaild(int Index)
-        {
-            if (Index < 0 || Index > WidthCount * HeightCount - 1)
+            if (TextureRegions.Values.ToList().Find(x => x.Name == name) == null)
             {
                 return false;
             }
@@ -427,20 +56,134 @@ namespace DotAge.Core.View
         public bool LoadNames(string[] _names)
         {
             var offset = 0;
-            var start = TextureNames.Count;
+            var start = TextureRegions.Count;
 
-            Point startPos = MathTool.LengthTransToPointX(TextureNames.Count , WidthCount);
+            Point startPos = MathTool.HorizonLayout(start, WidthCount);
             for (int i = 0; i < _names.Length;i++ )
             {
-                Point _tileTexturePoint = MathTool.LengthTransToPointX(i + offset + start, WidthCount);
-                if (TextureNames.Values.Contains(_tileTexturePoint))
-                {
-                    offset++;
-                    _tileTexturePoint = MathTool.LengthTransToPointX(i + offset + start, WidthCount);
-                }
-                TextureNames[_names[i]] = _tileTexturePoint;
+                Point _tileTexturePoint = MathTool.HorizonLayout(i + offset + start, WidthCount);
+                LoadName(_names[i] , _tileTexturePoint);
             }
             return true;
+        }
+
+        public bool LoadName(string _name , Point _position)
+        {
+            if (_position.X >= 0 && _position.Y >= 0 && _position.X < WidthCount && _position.Y < HeightCount)
+            {
+                TextureRegions[_position] = new TextureRegion()
+                {
+                    Texture = Texture,
+                    TextureRect = new Rectangle(1 + (_position.X * (UnitWidth + 1)), 1 + (_position.Y * (UnitHeight + 1)), UnitWidth, UnitHeight),
+                    Name = _name
+                };
+            }
+            return true;
+        }
+    }
+
+    public class TextureRegion
+    {
+        public Texture2D Texture;
+        public Rectangle? TextureRect;
+        public string Name = "None";
+    }
+
+    public abstract class BaseRenderProperty
+    {
+        public Vector2 _position = Vector2.Zero;
+        public Color _tintColor = Color.White;
+        public float _rotation = 0f;
+        public Vector2 _origin = Vector2.Zero;
+        public SpriteEffects _effect = SpriteEffects.None;
+        public float _layerDepth = 0f;
+        public bool _isVisible = true;
+        public bool _isStatic = false;
+        public bool _isChanged = false;
+        public virtual RectF RenderBox { get { return new RectF(Position, Vector2.One); } }
+        public Vector2 Position { get { return _position; } set { if (!_position.Equals(value)) _position = value; IsChanged = true; } }
+        public Color TintColor { get { return _tintColor; } set { if (!_tintColor.Equals(value)) _tintColor = value; IsChanged = true; } }
+        public float Rotation { get { return _rotation; } set { if (_rotation != value) _rotation = value; IsChanged = true; } }
+        public Vector2 Origin { get { return _origin; } set { if (!_origin.Equals(value)) _origin = value; IsChanged = true; } }
+        public SpriteEffects Effect { get { return _effect; } set { if (_effect != value) _effect = value; IsChanged = true; } }
+        public float LayerDepth { get { return _layerDepth; } set { if (_layerDepth != value) _layerDepth = value; IsChanged = true; } }
+        public bool IsVisible { get { return _isVisible; } set { if (_isVisible != value) _isVisible = value; IsChanged = true; } }
+        public bool IsStatic { get { return _isStatic; } set { if (_isStatic != value) _isStatic = value; IsChanged = true; } }
+        public bool IsChanged { get { return _isChanged; } set { _isChanged = value; } }
+        public virtual bool CheckVaild()
+        {
+            if (IsStatic == true)
+            {
+                if (IsChanged == true)
+                {
+                    return true;
+                }
+                else
+                {
+                    IsChanged = false;
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    public class TextureRenderProperty : BaseRenderProperty
+    {
+        public TextureRegion _region = null;
+        public Vector2 _size = Vector2.Zero;
+        public Vector2 _scale = Vector2.One;
+        public override RectF RenderBox { get { return new RectF(Position, Size); } }
+        public TextureRegion Region { get { return _region; } set { if (_region != value) _region = value; IsChanged = true; } }
+        public Vector2 Size { get { return _size; } set { if (!_size.Equals(value)) _size = value; IsChanged = true; } }
+        public Vector2 Scale { get { return _scale; } set { if (!_scale.Equals(value)) _scale = value; IsChanged = true; } }
+
+        public TextureRenderProperty()
+        {
+
+        }
+        public TextureRenderProperty(TextureRegion texture, Vector2 position, Vector2 size, Color color, float rotation, Vector2 origin, Vector2 scale, SpriteEffects effect, float layerDepth)
+        {
+            Region = texture;
+            Position = position;
+            Size = size;
+            TintColor = color;
+            Rotation = rotation;
+            Origin = origin;
+            Effect = effect;
+            LayerDepth = layerDepth;
+            Scale = scale;
+        }
+    }
+
+
+    public class TextRenderProperty : BaseRenderProperty
+    {
+        public MessageEntity TextSource = null;
+        public SpriteFont _font = null;
+        public int _size = 12;
+        public Vector2 _scale = Vector2.One;
+        public override RectF RenderBox { get { return new RectF(Position, Font.MeasureString(Text.Message)); } }
+        public MessageEntity Text { get { return TextSource; } set { if (TextSource != value) TextSource = value; IsChanged = true; } }
+        public SpriteFont Font { get { return _font; } set { if (_font != value) _font = value; IsChanged = true; } }
+        public int Size { get { return _size; } set { if (_size != value) _size = value; IsChanged = true; } }
+        public Vector2 Scale { get { return _scale; } set { if (!_scale.Equals(value)) _scale = value; IsChanged = true; } }
+
+        public TextRenderProperty()
+        {
+        }
+        public TextRenderProperty(MessageEntity text, SpriteFont font, Vector2 position, int size, Color color, float rotation, Vector2 origin, Vector2 scale, SpriteEffects effect, float layerDepth)
+        {
+            Text = text;
+            Font = font;
+            Position = position;
+            Size = size;
+            TintColor = color;
+            Rotation = rotation;
+            Origin = origin;
+            Effect = effect;
+            LayerDepth = layerDepth;
+            Scale = scale;
         }
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.Design;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using DotAge.Core.Control;
 using DotAge.Core.Model.Dialogue;
@@ -11,261 +12,591 @@ using Microsoft.Xna.Framework;
 
 namespace DotAge.Core.Model
 {
-    interface IEntity
+    public interface IIndexable
     {
-        Ray ModifyShootingPosition(Ray RalativeRay);
-    }
+        public List<BaseIndex> BelongIndex { get; set; }
 
-    class Entity : IClick
-    {
-        public int ID = -1;
-        public List<int> ChildID = new List<int>();
-        public int ParentID = -1;
-        public delegate bool ExcuteDelegates();
-        public PhysicEntity PhysicFrame { get; set; } = new PhysicEntity();//M
-        public RenderEntity RenderFrame { get; set; } = new RenderEntity();//V
-        public GameEntity GameFrame { get; set; } = new GameEntity();//C
-        public MessageEntity MessageEntity { get; set; } = new MessageEntity();
-        ZoneEntity IClick.ClickZone { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-
-        public List<Point> MapIndexes = new List<Point>();
-        public ZoneEntity ClickZone = new();
-
-        public Entity()
+        public bool UpdateBelongIndex(RectF CrashBox)
         {
-            RenderFrame = new RenderEntity(16, new int[] { 15});
-            RenderFrame.ChangeCanvas(1 , TextureManager.GetTextureRegionByName("Character", "Empty"));
-            //RenderEntity.ChangeBackground(TextureManager.GetTextureRegionByName("Character", "Crash_Frame"));
-        }
-
-        public Type GetEntityType()
-        {
-            return GetType();
-        }
-
-        public bool AddMapIndex(Point _index)
-        {
-            if (!MapIndexes.Contains(_index))
+            foreach (var index in BelongIndex.ToArray())
             {
-                MapIndexes.Add(_index);
+                if (index.IndexRange.Contains(CrashBox) == false)
+                {
+                    BelongIndex.Remove(index);
+                }
+            }
+            return true;
+        }
+
+        public bool RegisterIndex(BaseIndex index)
+        {
+            if (index != null)
+            {
+                BelongIndex.Add(index);
                 return true;
             }
             return false;
         }
 
-        public virtual bool UpdatePosition()
+        public bool UnbindAllIndex()
         {
-            RenderFrame.UpdatePosition(PhysicFrame.Position);
-            ClickZone.TriggerZone = PhysicFrame.CrashBox;
+            foreach (var index in BelongIndex.ToArray())
+            {
+                index.RemoveEntity(this as Entity);
+            }
+            BelongIndex.Clear();
+            return true;
+        }
+
+        public bool UnregisterIndex(BaseIndex index)
+        {
+            if (index != null)
+            {
+                return BelongIndex.Remove(index);
+            }
             return false;
         }
 
-        public virtual bool UpdateSize()
+        public List<Entity> GetRangeEntity()
         {
-            if (GameFrame.IsRenderFollowCrashbox == true)
+            return [.. BelongIndex.SelectMany(index => index.EntityIndex).Distinct()];
+        }
+
+        public List<IPhysicEntity> GetIndexRangeCrashBox()
+        {
+            return [.. BelongIndex.SelectMany(index => index.CrashBoxIndex).Distinct()];
+        }
+    }
+
+    public interface IPhysicEntity
+    {
+        PhysicBase PhysicProperty { get; set; }
+        public Func<IPhysicEntity, bool> OnCrash { get; set; }
+
+        public bool Crashed(IPhysicEntity physicEntity) => OnCrash?.Invoke(physicEntity) ?? false;
+    }
+
+    public interface IRenderEntity
+    {
+        RenderEntity RenderProperty { get; set; }
+        public virtual bool UpdateRender() => true;
+    }
+    public interface IGameEntity
+    {
+        GameEntity GameProperty { get; set; }
+        public bool IsAlive() => GameProperty.IsAlive;
+
+        public virtual bool BeUse(IGameEntity user)
+        {
+            return true;
+        }
+
+        public virtual bool Use()
+        {
+            return true;
+        }
+    }
+
+    public class Entity : IPhysicEntity, IRenderEntity, IGameEntity
+    {
+        public int ID = -1;
+        public EngineAccessor EngineAccess = null;
+        public List<Entity> Children = new List<Entity>();
+        public Entity Parent = null;
+        public PhysicBase PhysicProperty { get; set; } = new PhysicEntity();
+        public RenderEntity RenderProperty { get; set; } = new RenderEntity();
+        public GameEntity GameProperty { get; set; } = new GameEntity();
+        public List<BaseIndex> BelongIndex { get; set; } = new List<BaseIndex>();
+
+        public event Action OnUpdate;
+
+        public bool IsRenderFollowPhysic = true;
+        private bool _isUsing = false;
+
+        public Entity(EngineAccessor accessor)
+        {
+            this.EngineAccess = accessor;
+
+            RenderProperty.LoadTexture("MissingTexture");
+            GameProperty.Trigger.TriggerLoacation = PhysicProperty;
+            OnUpdate += () => 
             {
-                RenderFrame.UpdateSize(PhysicFrame.Size);
-            }
-            return false;
+                if (IsRenderFollowPhysic == true)
+                {
+                    RenderProperty.UpdatePosition(PhysicProperty.Position);
+                    RenderProperty.UpdateSize(PhysicProperty.Size);
+                }
+                UpdateBelongIndex();
+                GameProperty.SetFaceForward(PhysicProperty.FaceForward);
+            };
+            PhysicProperty.OnCrashEvent += (pb) => 
+            {
+                OnCrash(pb);
+            };
         }
 
         public virtual bool Update()//整合更新安排的事件
         {
-            MessageEntity.MessageItem = new ItemInformation()
+            if (OnUpdate != null)
             {
-                Title = GameFrame.Name,
-                Description = "A Simple Entity For Test",
-                Content = "This Entity : " + ID + " Has " + GameFrame.Money + " Money",
-                Icon = TextureManager.GetTextureRegionByName("Character", "Empty"),
-            };
+                OnUpdate();
+            }
             return true;
         }
 
-        public bool BindChild(int _childID)
+        public bool BindChild(Entity entity)
         {
-            if (GameData.GameEntities.ContainsKey(_childID))
+            if (entity != null)
             {
-                GameData.GameEntities[_childID].ParentID = ID;
-                ChildID.Add(_childID);
+                Children.Add(entity);
                 return true;
             }
             return false;
         }
 
-        public bool UnBindChild(int _childID)
+        public bool UnBindChild(Entity entity)
         {
-            if (GameData.GameEntities.ContainsKey(_childID))
+            if (entity != null)
             {
-                GameData.GameEntities[_childID].ParentID = -1;
-                ChildID.Remove(_childID);
+                Children.Remove(entity);
                 return true;
             }
             return false;
         }
 
-        public bool BindParent(int _parentID)
+        public bool BindParent(Entity entity)
         {
-            if (GameData.GameEntities.ContainsKey(_parentID))
+            if (entity != null)
             {
-                GameData.GameEntities[_parentID].ChildID.Add(ID);
-                ParentID = _parentID;
+                entity.BindChild(this);
+                Parent = entity;
                 return true;
             }
             return false;
         }
 
-        public bool UnBindParent(int _parentID)
+        public bool UnBindParent()
         {
-            if (GameData.GameEntities.ContainsKey(_parentID))
-            {
-                GameData.GameEntities[_parentID].ChildID.Remove(ID);
-                ParentID = -1;
-                return true;
-            }
-            return false;
-        }
-
-        public bool CreateChild(Entity _child)
-        {
-            if (_child == null)
-            {
-                return false;
-            }
-            Ray _rayForce = new()
-            {
-                Position = Controlers.CurrentMapMousePosition.ToVector2(),
-                Direct = Controlers.CurrentMapMousePosition.ToVector2() - PhysicFrame.Position
-            };
-            _child.PhysicFrame.PathNodes.ForceRay = _rayForce.Direct;
-            _child.PhysicFrame.Position = Controlers.CurrentMapMousePosition.ToVector2();
-            _child.ParentID = ID;
-            Engine.CreateEntityList.Add(_child);
+            Parent = null;
             return true;
         }
 
-        public bool InvokeDelegates()
+        public bool CreateChildEntity(Entity entity)
+        {
+            if (EngineAccess != null)
+            {
+                if (entity != null)
+                {
+                    entity.BindParent(this);
+                    EngineAccess.AddEntity(entity);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public virtual bool OnCrash(IPhysicEntity BeingCrashedEntity)
         {
             return true;
         }
 
-
-        public virtual void Trigger()
+        public virtual void OnHealthChange(float deltaHealth , Entity source)
         {
-
-        }
-
-        public virtual void Crash(int _EntityID)
-        {
+            if (GameProperty.Health >= 0)
+            {
+                GameProperty.Health += deltaHealth;
+                if (GameProperty.Health <= 0)
+                {
+                    if (source != null)
+                    {
+                        source.Kill(this);
+                        EngineAccess.RemoveEntity(this);
+                    }
+                }
+            }
 
         }
 
         public virtual ItemInformation? OnClick()
         {
             return null;
-            // This method can be overridden by derived classes to handle click events.
-            // Currently, it does nothing.
+        }
+
+        public virtual bool Kill(Entity entity)
+        {
+            if (entity == null)
+            {  return false; }
+            var parent = this;
+            if ( parent != null)
+            {
+                while (true)
+                {
+                    if (parent.Parent == null)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        parent = parent.Parent;
+                    }
+                }
+            }
+            parent.GameProperty.KilledEntity.Add(entity);
+            entity.GameProperty.BeingKilledEntity = parent;
+            if (entity.GameProperty.KilledEntity.Count % 2 == 0)
+            {
+                parent.GameProperty.SkillPoint++;
+            }
+            return true;
+        }
+
+        public bool UpdateBelongIndex()
+        {
+            BelongIndex = EngineAccess?.GetRangeIndex(new RectF(PhysicProperty.Position , PhysicProperty.Size)) ?? [];
+            return true;
+        }
+
+        public bool UnbindAllIndex()
+        {
+            foreach (var index in BelongIndex.ToArray())
+            {
+                index.RemoveEntity(this);
+                index.RemoveCrashBox(this);
+                index.RemoveRenderEntity(this);
+            }
+            BelongIndex.Clear();
+            return true;
+        }
+
+        public bool RegisterIndex(BaseIndex index)
+        {
+            if (index != null)
+            {
+                BelongIndex.Add(index);
+                return true;
+            }
+            return false;
+        }
+
+        public bool UnregisterIndex(BaseIndex index)
+        {
+            if (index != null)
+            {
+                return BelongIndex.Remove(index);
+            }
+            return false;
+        }
+
+        public virtual bool Use()
+        {
+            if (_isUsing)
+            {
+                return false;
+            }
+            _isUsing = true;
+            try
+            {
+                RayF SearchForward = new RayF(PhysicProperty.CrashBox.Center , PhysicProperty.FaceForward);
+                var ret = EngineAccess?.GetLineIndex(SearchForward, GameProperty.UseRange);
+                foreach (var entity in ret)
+                {
+                    if (entity != null && entity != this)
+                    {
+                        entity.BeUse(this);
+                    }
+                }
+            }
+            finally
+            {
+                _isUsing = false;
+            }
+            return false;
+        }
+
+        public virtual bool BeUse(IGameEntity user)
+        {
+            return true;
+        }
+
+        public List<Entity> GetIndexRangeEntity()
+        {
+            return [.. BelongIndex.SelectMany(index => index.EntityIndex).Distinct()];
+        }
+
+        public List<IPhysicEntity> GetIndexRangeCrashBox()
+        {
+            return [.. BelongIndex.SelectMany(index => index.CrashBoxIndex).Distinct()];
+        }
+
+        public List<IRenderEntity> GetIndexRangeRender()
+        {
+            return [.. BelongIndex.SelectMany(index => index.RenderIndex).Distinct()];
+        }
+
+        public virtual List<Entity> GetRangeEntity()
+        {
+            float range = GameProperty.LoadEntityRange;
+            return EngineAccess?.GetRangeIndex(new RectF(PhysicProperty.Position - new Vector2(range, range) , PhysicProperty.Size + new Vector2(range * 2, range * 2)))?.SelectMany(index => index.EntityIndex).Distinct().ToList() ?? [];
+        }
+
+        public virtual List<IPhysicEntity> GetRangeCrashBox()
+        {
+            float range = MathF.Max(PhysicProperty.WishRange.Size.X , PhysicProperty.WishRange.Size.Y);
+            return EngineAccess?.GetRangeIndex(new RectF(PhysicProperty.Position - new Vector2(range, range), PhysicProperty.Size + new Vector2(range * 2, range * 2)))?.SelectMany(index => index.CrashBoxIndex).Distinct().ToList() ?? [];
+        }
+
+        public virtual List<IRenderEntity> GetRangeRender()
+        {
+            RectF range = new(PhysicProperty.Position - (( GameProperty.LoadChunkRange / 2 ) * GameSetting.ChunkSize) ,new Vector2( GameProperty.LoadChunkRange , GameProperty.LoadChunkRange ) * GameSetting.ChunkSize);
+            return EngineAccess?.GetRangeIndex(range)?.SelectMany(index => index.RenderIndex).Distinct().ToList() ?? [];
+        }
+
+        public override string ToString()
+        {
+            return $"Entity ID: {ID}, Type: {GetType().Name}, Position: {PhysicProperty.Position}, Size: {PhysicProperty.Size}, IsAlive: {GameProperty.IsAlive}";
         }
     }
 
-    class Creature : Entity
+    public class Creature : Entity
     {
-        public Creature()
+        public Creature(EngineAccessor accessor) : base(accessor)
         {
-            PhysicFrame.Position = new Vector2(0, 0);
-            PhysicFrame.Size = new Vector2(32, 32);
+            PhysicProperty.Position = new Vector2(0, 0);
+            PhysicProperty.Size = new Vector2(32, 32);
+            
         }
-
-        public override bool UpdatePosition()
-        {
-            return base.UpdatePosition();
-        }
-
     }
 
     class CityEntity : Entity
     {
-        public CityEntity()
+        public CityEntity(EngineAccessor accessor) : base(accessor)
         {
-            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Castle_Bright"));
+
             
         }
     }
 
     class Soildre : Creature
     {
-        public Soildre()
+        public int BeAttackTime = 0;
+
+        public Soildre(EngineAccessor accessor) : base(accessor)
         {
-            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character" , "Human_Engineer"));
-            PhysicFrame.Position = new Vector2(0, 0);
-            RenderFrame.ChangeRalatePosition(new Vector2(0, -16), 1);
+            PhysicProperty.IsSoild = true;
+            RenderProperty = new LerpRenderEntity();
+            RenderProperty.LoadTexture("Human_Engineer");
         }
 
-        Paragraph paragraph = new Paragraph()
+        public override bool Update()
         {
-
-        };
-
-        public void AddSpeaker()
-        {
-
-            Sentence sentence = new Sentence()
+            base.Update();
+            if (EngineAccess != null)
             {
-                Content = "Hello World , this is a complex content for display our new technologi way.",
-                Title = "Test",
-                LoopShow = false,
-                TimerDueTime = 0,
-                TimerPeriod = 75
-            };
-            Sentence sentence1 = new Sentence()
+                if (EngineAccess.GetGameTime() - BeAttackTime > 10)
+                {
+                    RenderProperty.Sprite.BaseProperty.TintColor = Color.White;
+                }
+            }
+            if (PhysicProperty.IsMoving == true)
             {
-                Content = "Idk what can i do more.",
-                Title = "Test",
-                LoopShow = false,
-                TimerDueTime = 0,
-                TimerPeriod = 75
-            };
-            Sentence sentence2 = new Sentence()
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(36, 32));
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(28, 32));
+            }
+            else
             {
-                Content = "Otherwise , i want to play dota2 more than cs2",
-                Title = "Test",
-                LoopShow = false,
-                TimerDueTime = 0,
-                TimerPeriod = 75
-            };
-            paragraph.Sentences.Add(sentence);
-            paragraph.Sentences.Add(sentence1);
-            paragraph.Sentences.Add(sentence2);
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(32, 32));
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.PushSize(new Vector2(32, 32));
+            }
+            return true;
+        }
 
-            paragraph.Start();
+        public override void OnHealthChange(float delta , Entity source)
+        {
+            RenderProperty.Sprite.BaseProperty.TintColor = Color.Red;
+            BeAttackTime = EngineAccess.GetGameTime();
+            base.OnHealthChange(delta , source);
+        }
+    }
+
+    public class TargetCore : Creature
+    {         
+        public TargetCore(EngineAccessor accessor) : base(accessor)
+        {
+            RenderProperty.LoadTexture("TV_Happy");
+            GameProperty.Health = 1000;
+        }
+    }
+
+    public class Zombie : Creature
+    {
+        public Entity Target = null;
+        public int AttackInterval = 75;
+        public int LastAttackTime = 0;
+        public int AttackTime = 25;
+
+        public Zombie(EngineAccessor accessor) : base(accessor)
+        {
+            RenderProperty.LoadTexture("TV_Normal");
 
         }
 
-        public override bool UpdatePosition()
+        public override bool OnCrash(IPhysicEntity _entity)
         {
-            //paragraph.Update();
-            RenderFrame.Canvas.RenderProperties[15].Text = paragraph.GetCurrentContent;
-            return base.UpdatePosition();
+            if (_entity is Soildre == true)
+            {
+                (_entity as Soildre).GameProperty.ModifyHealth(-0f , this);
+            }
+            return base.OnCrash(_entity);
+        }
+        
+        public override bool Update()
+        {
+            if (EngineAccess == null)
+            {
+                return base.Update();
+            }
+            if (Target == null)
+            {
+                Target = GetRangeEntity().Find(match => match.GetType() == typeof(Soildre));
+            }
+            else
+            {
+                (PhysicProperty as PhysicEntity).Pioneer.UpdateDirect(Target.PhysicProperty.Position - PhysicProperty.Position);
+                if( EngineAccess.GetGameTime() - LastAttackTime >= AttackTime)
+                {
+                    RenderProperty.LoadTexture("TV_Normal");
+                }
+                if (EngineAccess.GetGameTime() - LastAttackTime >= AttackInterval)
+                {
+                    int t = 0;
+                    GetRangeEntity().Where(entity => entity.GetType() == typeof(Soildre) || entity.GetType() == typeof(Wall)).ToList().ForEach(entity =>
+                    {
+                        if ((entity.PhysicProperty.Position - PhysicProperty.Position).Length() <= 40)
+                        {
+                            entity.OnHealthChange(-10f, this);
+                            t++;
+                        }
+                    });
+                    if (t > 0)
+                    {
+                        LastAttackTime = EngineAccess.GetGameTime();
+                        RenderProperty.LoadTexture("TV_Bad");
+                        EngineAccess.PlaySoundEffect("hit");
+                    }
+
+                }
+            }
+            return base.Update();
         }
 
-        public override void Crash(int _EntityID)
+        public override bool BeUse(IGameEntity gameEntity)
         {
-            GameFrame.ModifyHealth(-0.7f);
-            base.Crash(_EntityID);
-        }
-
-        public override void Trigger()
-        {
-            
-            GameFrame.ModifyMoney(0);
-            base.Trigger();
+            RenderProperty.Sprite.BaseProperty.TintColor = Color.Red;
+            Target = this;
+            return base.BeUse(gameEntity);
         }
     }
 
     class Turret : Creature
     {
-        public Turret()
+        public Entity AttackTarget = null;
+        public float AttackRange = 500;
+        public int ShootInterval = 20;
+        public int During = 0;
+        public int BulletPCount = 1;
+        public float BullectDamage = 9;
+        public Turret(EngineAccessor accessor) : base(accessor)
         {
-            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Turret_Gun"));
+            RenderProperty.LoadTexture("Turret_Gun");
+        }
+
+        public override bool Update()
+        {
+            if (AttackTarget == null)
+            {
+                LoacateTarget();
+            }
+            else
+            {
+                if (AttackTarget.GameProperty.IsAlive == false)
+                {
+                    AttackTarget = null;
+                    return base.Update();
+                }
+                if ((AttackTarget.PhysicProperty.Position - PhysicProperty.Position).Length() > AttackRange)
+                {
+                    LoacateTarget();
+                }
+                else
+                {
+                    During++;
+                    if (During < ShootInterval)
+                    {
+                        return base.Update();
+                    }
+                    else
+                    {
+                        During = 0;
+                    }
+                    var bullet = new Bullet(EngineAccess) 
+                    {
+                        Parent = this,
+                        PierceCount = BulletPCount,
+                        Damage = BullectDamage,
+                        PhysicProperty = new PhysicEntity()
+                        {
+                            Position = this.PhysicProperty.Position,
+                            SpeedLength = 0.05f,
+                            Size = new Vector2(8, 8),
+                            Pioneer = new Pioneer()
+                            {
+                                Direct = Vector2.Normalize(AttackTarget.PhysicProperty.CrashBox.Center - this.PhysicProperty.Position)
+                            }
+                        },
+                    };
+
+                    CreateChildEntity(bullet);
+                    EngineAccess.PlaySoundEffect("shoot");
+                }
+            }
+            return base.Update();
+        }
+
+        public bool LoacateTarget()
+        {
+            Entity? ScanEntity = null;
+            if (EngineAccess != null)
+            {
+                foreach (var entity in GetRangeEntity())
+                {
+                    if (entity is Zombie && entity != this && entity.Children.Contains(this) == false)
+                    {
+                        if (ScanEntity == null)
+                        {
+                            if ((entity.PhysicProperty.Position - PhysicProperty.Position).Length() <= AttackRange)
+                            {
+                                ScanEntity = entity;
+                            }
+                            continue;
+                        }
+                        if ((entity.PhysicProperty.Position - ScanEntity.PhysicProperty.Position).Length() <= AttackRange)
+                        {
+                            ScanEntity = entity;
+                        }
+                    }
+                }
+            }
+            
+
+            AttackTarget = ScanEntity;
+            if (ScanEntity == null)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
         }
     }
 
@@ -274,7 +605,7 @@ namespace DotAge.Core.Model
         public bool Minable = true;
         public float Storage = 100;
 
-        public Mine()
+        public Mine(EngineAccessor accessor) : base(accessor)
         {
 
         }
@@ -289,53 +620,116 @@ namespace DotAge.Core.Model
     class Bullet : Entity
     {
         public int PierceCount = 1;
-        public float Damage = 0.9f;
+        public float Damage = 9f;
+        public int AliveTime = 300;//frame
 
-        public Bullet()
+        public Bullet(EngineAccessor accessor) : base(accessor)
         {
-            GameFrame.IsRenderFollowCrashbox = true;
-            PhysicFrame.Size = new Vector2(32, 32);
-
-            //RenderEntity.RenderSize = new Vector2(16, 16);
-            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character", "Wihte_Ball"));
-            RenderFrame.Canvas.RenderProperties[^1].TintColor = Color.Gray;
-            //RenderEntity.ChangeBackground(TextureName.Crash_Frame);
-
-            PhysicFrame.PathNodes.IsFollowForceRay = true;
-            PhysicFrame.PathNodes.Cycle = false;
+            RenderProperty.LoadTexture("Bullet_Yellow");
+            PhysicProperty.SpeedLength = 0.5f;
         }
 
-        public override void Crash(int _EntityID)
+        public override bool OnCrash(IPhysicEntity entity)
         {
-            GameData.GameEntities[_EntityID].GameFrame.ModifyHealth(-Damage);
-            PierceCount--;
-            if (PierceCount <= 0)
+            if (entity is Zombie)
             {
-                Engine.RemoveEntityList.Add(ID);
+                (entity as Zombie).OnHealthChange(-Damage , this);
+                PierceCount--;
+                if (PierceCount <= 0)
+                {
+                    if (EngineAccess != null)
+                    {
+                        EngineAccess.RemoveEntity(this);
+                    }
+
+                }
             }
-            base.Crash(_EntityID); 
+            else
+            {
+
+            }
+            return base.OnCrash(entity); 
         }
 
-        public override void Trigger()
+        public override bool Update()
         {
-
-            
+            AliveTime--;
+            if (AliveTime <= 0)
+            {
+                if (EngineAccess != null)
+                {
+                    EngineAccess.RemoveEntity(this);
+                }
+            }
+            return base.Update();
         }
     }
 
     class GoldMine : Mine
     {
-        public GoldMine()
+        public GoldMine(EngineAccessor accessor) : base(accessor)
         {
-            RenderFrame.ChangeFront(TextureManager.GetTextureRegionByName("Character" , "Mine_Gold"));
-            RenderFrame.ChangeBackground(TextureManager.GetTextureRegionByName("Character", "Shadow_White"));
-            GameFrame.Name = "Gold_Mine";
+            GameProperty.Name = "Gold_Mine";
+            RenderProperty.LoadTexture("MissingTexture");
         }
 
         public override void Dig()
         {
             Storage--;
             base.Dig();
+        }
+
+        public override bool OnCrash(IPhysicEntity BeingCrashedEntity)
+        {
+            if (BeingCrashedEntity is Soildre)
+            {
+                (BeingCrashedEntity as Soildre).GameProperty.ModifyMoney(1f);
+                EngineAccess?.RemoveEntity(this);
+            }
+
+            return base.OnCrash(BeingCrashedEntity);
+        }
+    }
+
+
+    class Door : Entity
+    {
+        public bool IsOpen = false;
+        public bool IsProcessing = false;
+        public float process = 0f;
+
+        public Door(EngineAccessor accessor) : base(accessor)
+        {
+            RenderProperty = new LerpRenderEntity();
+            (RenderProperty as LerpRenderEntity).LoadAsLerp.AutoLoop = false;
+            IsRenderFollowPhysic = true;
+            RenderProperty.LoadTexture("MissingTexture");
+            (RenderProperty as LerpRenderEntity).LoadAsLerp.InitLerp(new TextureRenderProperty() , new TextureRenderProperty(), 1);
+            RenderProperty.UpdateSize(new Vector2(0, 64));
+            RenderProperty.UpdateSize(new Vector2(32, 64));
+            PhysicProperty.Size = new Vector2(32, 64);
+            PhysicProperty.IsSoild = true;
+            GameProperty.Trigger.TriggerLoacation = new Location(new Vector2(32 * 3, 32 * 4), PhysicProperty.Size);
+        }
+
+        public override bool BeUse(IGameEntity gameEntity)
+        {
+            if (IsProcessing == true)
+            {
+                return false;
+            }
+            IsOpen = !IsOpen;
+            if (IsOpen == true)
+            {
+                PhysicProperty.Size = new Vector2(0 , 0);
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.ReverseLerp();
+            }
+            else
+            {
+                PhysicProperty.Size = new Vector2(32, 64);
+                (RenderProperty as LerpRenderEntity).LoadAsLerp.ReverseLerp(); 
+            }
+            return true;
         }
     }
 }

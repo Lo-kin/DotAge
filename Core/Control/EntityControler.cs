@@ -6,15 +6,17 @@ using System.Linq;
 using Microsoft.Xna.Framework;
 using DotAge.Core.Model.Delegates;
 using DotAge.Core.Model;
+using System.Security.Cryptography.X509Certificates;
 
 namespace DotAge.Core.Control
 {
-    class EntityControler
+    public class EntityControler
     {
         public int ID = -1;
+        public EngineAccessor EngineAccess = null;
         public Entity ExcuteEntity = null;
-        public List<(Keys , TwoStat)> FrameKeys = new();
-        public List<(MouseButton , TwoStat)> FrameMouse = new();
+        public List<(Keys , TwoStatus)> FrameKeys = new();
+        public List<(MouseButton , TwoStatus)> FrameMouse = new();
         public Dictionary<Keys, ControlerFunc> KeyDelegate = new();
         public Dictionary<MouseButton , ControlerFunc> MouseDelegate = new();
         public Dictionary<int , ZoneEntity> ZoneDelegate = new();
@@ -33,16 +35,17 @@ namespace DotAge.Core.Control
             ControlerFunc _esc = new()
             {
                 BindKey = Keys.Escape,
-                TriggerStat = TwoStat.FreezeToActive,
+                TriggerStat = TwoStatus.FreezeToActive,
                 ControlerFuncDelegate = (ClickStat , ClickPos) => { return ItemInformation.NullItem; },
                 ControlerFuncescription = "Exit temp"
             };
             ControlerFunc _up = new()
             {
                 BindKey = Keys.W,
-                TriggerStat = TwoStat.Active,
+                TriggerStat = TwoStatus.Active,
                 ControlerFuncDelegate = (ClickStat, ClickPos) => {
-                    Move(-Vector2.UnitY); 
+                    Move(-Vector2.UnitY);
+                    ExcuteEntity.PhysicProperty.FaceForward = -Vector2.UnitY;
                     return ItemInformation.NullItem; 
                 },
                 ControlerFuncescription = "MoveUP"
@@ -50,42 +53,122 @@ namespace DotAge.Core.Control
             ControlerFunc _down = new()
             {
                 BindKey = Keys.S,
-                TriggerStat = TwoStat.Active,
-                ControlerFuncDelegate = (ClickStat, ClickPos) => {Move(Vector2.UnitY); return ItemInformation.NullItem; },
+                TriggerStat = TwoStatus.Active,
+                ControlerFuncDelegate = (ClickStat, ClickPos) => {
+                    Move(Vector2.UnitY);
+                    ExcuteEntity.PhysicProperty.FaceForward = Vector2.UnitY;
+                    return ItemInformation.NullItem; },
                 ControlerFuncescription = "MoveDOWN"
             };
             ControlerFunc _left = new()
             {
                 BindKey = Keys.A,
-                TriggerStat = TwoStat.Active,
-                ControlerFuncDelegate = (ClickStat, ClickPos) => { Move(-Vector2.UnitX); return ItemInformation.NullItem; },
+                TriggerStat = TwoStatus.Active,
+                ControlerFuncDelegate = (ClickStat, ClickPos) => { 
+                    Move(-Vector2.UnitX);
+                    ExcuteEntity.PhysicProperty.FaceForward = -Vector2.UnitX;
+                    return ItemInformation.NullItem; },
                 ControlerFuncescription = "MoveLEFT"
             };
             ControlerFunc _right = new()
             {
                 BindKey = Keys.D,
-                TriggerStat = TwoStat.Active,
-                ControlerFuncDelegate = (ClickStat, ClickPos) => {Move(Vector2.UnitX); return ItemInformation.NullItem; },
+                TriggerStat = TwoStatus.Active,
+                ControlerFuncDelegate = (ClickStat, ClickPos) => {
+                    Move(Vector2.UnitX); 
+                    ExcuteEntity.PhysicProperty.FaceForward = Vector2.UnitX;
+                    return ItemInformation.NullItem; },
                 ControlerFuncescription = "MoveRIGHT"
+            };
+            ControlerFunc _build = new()
+            {
+                BindKey = Keys.B,
+                TriggerStat = TwoStatus.ActiveToFreeze,
+                ControlerFuncDelegate = (ClickStat, ClickPos) =>
+                {
+                    if (EngineAccess != null)
+                    {
+                        if (ExcuteEntity.GameProperty.Money >= 1)
+                        {
+                            EngineAccess.AddEntity(new Turret(EngineAccess)
+                            {
+                                Parent = ExcuteEntity,
+                                PhysicProperty = new PhysicEntity()
+                                {
+                                    Position = ExcuteEntity.PhysicProperty.Position + ((ExcuteEntity.PhysicProperty as PhysicEntity).Pioneer.Direct * 16),
+                                    Size = new Vector2(32, 32),
+                                }
+                            });
+                            ExcuteEntity.GameProperty.Money--;
+                        }
+
+                    }
+
+
+                    ItemInformation? ReturnMessage = null;
+                    return ReturnMessage;
+                },
+                ControlerFuncescription = "Build At Position"
+            };
+            ControlerFunc _PskillUp = new()
+            {
+                BindKey = Keys.X,
+                TriggerStat = TwoStatus.ActiveToFreeze,
+                ControlerFuncDelegate = (ClickStat, ClickPos) =>
+                {
+                    if (ExcuteEntity.GameProperty.SkillPoint != 0)
+                    {
+                        ExcuteEntity.GameProperty.PierceCount++;
+                        foreach (var item in ExcuteEntity.Children)
+                        {
+                            if (item is Turret)
+                            {
+                                (item as Turret).BulletPCount = ExcuteEntity.GameProperty.PierceCount;
+                            }
+                        }
+                        ExcuteEntity.GameProperty.SkillPoint--;
+                    }
+                    return null;
+                }
+            };
+            ControlerFunc _DskillUp = new()
+            {
+                BindKey = Keys.C,
+                TriggerStat = TwoStatus.ActiveToFreeze,
+                ControlerFuncDelegate = (ClickStat, ClickPos) =>
+                {
+                    if (ExcuteEntity.GameProperty.SkillPoint != 0)
+                    {
+                        ExcuteEntity.GameProperty.Damage+=9;
+                        foreach (var item in ExcuteEntity.Children)
+                        {
+                            if (item is Turret)
+                            {
+                                (item as Turret).BullectDamage = ExcuteEntity.GameProperty.Damage;
+                            }
+                        }
+                        ExcuteEntity.GameProperty.SkillPoint--;
+                    }
+                    return null;
+                }
+            };
+
+            ControlerFunc _eUse = new()
+            {
+                BindKey = Keys.E,
+                TriggerStat = TwoStatus.ActiveToFreeze,
+                ControlerFuncDelegate = (ClickStat, ClickPos) => {
+                    ExcuteEntity.Use();
+                    return ItemInformation.NullItem;
+                },
+                ControlerFuncescription = "opendoor"
             };
             ControlerFunc _leftmouse = new()
             {
                 BindMouseButton = MouseButton.Left,
-                TriggerStat = TwoStat.Any,
+                TriggerStat = TwoStatus.Any,
                 ControlerFuncDelegate = (ClickStat, ClickPos) => {
                     ItemInformation? ReturnMessage = null;
-                    foreach (var item in GameData.ZoneEntities)
-                    {
-                        if (item.IsFixedToMap == true)
-                        {
-                            item.Trigger(ClickPos, ClickStat);
-                        }
-                        else
-                        {
-                            item.Trigger(ClickPos - Graphic.ViewCamera.Position, ClickStat);
-                        }
-                        ReturnMessage = item.InformationSource.MessageItem;
-                    }
                     return ReturnMessage; 
                 },
                 ControlerFuncescription = "Target To Position"
@@ -93,16 +176,23 @@ namespace DotAge.Core.Control
             ControlerFunc _rightmouse = new()
             {
                 BindMouseButton = MouseButton.Right,
-                TriggerStat = TwoStat.ActiveToFreeze,
-                ControlerFuncDelegate = (ClickStat, ClickPos) => { ExcuteEntity.GameFrame.ModifyMoney(-0.01f); return ItemInformation.NullItem; },
+                TriggerStat = TwoStatus.ActiveToFreeze,
+                ControlerFuncDelegate = (ClickStat, ClickPos) => { 
+                    ExcuteEntity.GameProperty.ModifyMoney(-0.01f); return ItemInformation.NullItem; },
                 ControlerFuncescription = "Target To Position"
             };
+
             RegisterKey(_up);
             RegisterKey(_down);
             RegisterKey(_left);
             RegisterKey(_right); 
             RegisterMouse(_leftmouse);
             RegisterMouse(_rightmouse);
+            RegisterKey(_esc);
+            RegisterKey(_build);
+            RegisterKey(_PskillUp);
+            RegisterKey(_DskillUp);
+            RegisterKey(_eUse);
         }
 
         public bool RegisterKey(dynamic _controlerFunc)
@@ -126,7 +216,7 @@ namespace DotAge.Core.Control
                 {
                     KeyDelegate[_keyboardKey.Item1].Invoke(_keyboardKey.Item2 , Vector2.Zero);
                 }
-                log += _keyboardKey.ToString() + " ";
+
             }
             foreach (var _mouseKey in FrameMouse)
             {
@@ -134,19 +224,17 @@ namespace DotAge.Core.Control
                 {
                     MouseDelegate[_mouseKey.Item1].Invoke(_mouseKey.Item2, Controlers.CurrentMousePosition.ToVector2());
                 }
-                log += _mouseKey.ToString() + " ";
             }
-            ExcuteEntity.PhysicFrame.WishForward += MoveOprate;
+            (ExcuteEntity.PhysicProperty as PhysicEntity).Pioneer.UpdateDirect(MoveOprate);
             MoveOprate = new Vector2(0, 0);
             FrameKeys.Clear();
             FrameMouse.Clear();
-            Controlers.Log.Add(log);
             return true;
         }
 
         public bool CheckVaild()
         {
-            if (GameData.GameEntities.ContainsKey(ExcuteEntity.ID))
+            if (ExcuteEntity != null)
             {
                 return true;
             }
@@ -171,8 +259,8 @@ namespace DotAge.Core.Control
         {
             if (CheckVaild() == true)
             {
-                ExcuteEntity.PhysicFrame.PathNodes.IsFollowForceRay = true;
-                ExcuteEntity.PhysicFrame.PathNodes.ForceRay = _targetVec;
+                (ExcuteEntity.PhysicProperty as PhysicEntity).PathNodes.IsFollowForceRay = true;
+                (ExcuteEntity.PhysicProperty as PhysicEntity).PathNodes.ForceRay = _targetVec;
                 return true;
             }
             return false;
