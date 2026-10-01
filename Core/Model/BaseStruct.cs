@@ -16,6 +16,7 @@ namespace DotAge.Core.Model
     {
         public bool LastState { get; set; } = false;
         public bool CurrentState { get; set; } = false;
+        public int TriggerCount { get; set; } = 0;
         public TwoStatus TriggerCondition = TwoStatus.Any;
         public TwoStatus CurrentStatus
         {
@@ -39,20 +40,16 @@ namespace DotAge.Core.Model
                 }
             }
         }
-        public Stator()
-        {
-
-        }
 
         public Stator(TwoStatus triggerCondition)
         {
             TriggerCondition = triggerCondition;
         }
-        public TwoStatus Update(bool newState)
+        public bool Update(bool newState)
         {
             LastState = CurrentState;
             CurrentState = newState;
-            return CurrentStatus;
+            return IsTriggered();
         }
 
         public bool IsTriggered()
@@ -62,6 +59,7 @@ namespace DotAge.Core.Model
                 (TriggerCondition == TwoStatus.Freeze && CurrentStatus == TwoStatus.ActiveToFreeze) || 
                 (TriggerCondition == TwoStatus.Active && CurrentStatus == TwoStatus.FreezeToActive))
             {
+                TriggerCount++;
                 return true;
             }
             else
@@ -71,20 +69,30 @@ namespace DotAge.Core.Model
         }
 
     }
-
-    public struct ItemInformation
+    public class MessageEntity
     {
-        public static ItemInformation NullItem => new("Null", "This is a null item information.", "This is a null item content.");
-
         public string Title = "Item Information";
         public string Description = "This is a item information.";
-        public string Content  = "This is a item content."; 
-        public (int , Rectangle?) Icon = (-1, null);
-        public ItemInformation(string title, string description, string content)
+        public string Content = "This is a item content.";
+        public string Message { get; set; } = "default";
+        public int ScrollStep = 1;
+        public int ScrollOffset = 0;
+        public bool ScrollLoop = false;
+        public string ScrollMsg
         {
-            Title = title;
-            Description = description;
-            Content = content;
+            get
+            {
+                return Message[^ScrollOffset..] + Message[..(Message.Length - ScrollOffset)];
+            }
+        }
+        public MessageEntity(string msg) 
+        {
+            Message = msg;
+        }
+        public bool Update()
+        {
+            ScrollOffset = (ScrollOffset + ScrollStep) % (Message.Length + 1);
+            return true;
         }
     }
 
@@ -302,44 +310,6 @@ namespace DotAge.Core.Model
         {
             return MathTool.VectorDirect(BeingCheckLocation.Center - CheckLoacation.Center);
         }
-
-        public static Vector2 CrashSide(PhysicBase CheckLoacation , PhysicBase BeingCheckLocation)
-        {
-            var realDistance = MathTool.AbsVector(CheckLoacation.CrashBox.Center - BeingCheckLocation.CrashBox.Center) - (CheckLoacation.Size / 2) - (BeingCheckLocation.Size / 2);
-            var direct = new Vector2(MathF.Sign(realDistance.X), MathF.Sign(realDistance.Y));
-            if (IsContain(CheckLoacation.CrashBox , BeingCheckLocation.CrashBox))
-            {
-                return direct;
-            }
-            else
-            {
-                if (IsContain(CheckLoacation.WishRange, BeingCheckLocation.WishRange))
-                {
-                    Vector2 twoDistance = Distance(CheckLoacation.CrashBox, BeingCheckLocation.CrashBox);
-                    Vector2 wishmix = CheckLoacation.WishForward - BeingCheckLocation.WishForward;
-                    Vector2 twoWish = new Vector2(MathF.Abs(wishmix.X), MathF.Abs(wishmix.Y));
-                    Vector2 distanceArg = twoDistance + twoWish;
-                    if (distanceArg.X < distanceArg.Y)
-                    {
-                        return new Vector2(0, 1) * direct;
-                    }
-                    else if (distanceArg.X > distanceArg.Y)
-                    {
-                        return new Vector2(1, 0) * direct;
-                    }
-                    else
-                    {
-                        return new Vector2(1, 1) * direct;
-                    }
-                 }
-                else
-                {
-                    return Vector2.Zero;
-                }
-            }
-            return Vector2.Zero;
-        }
-
         public static Vector2 Distance(RectF CheckRect , RectF BeingCheckRect)
         {
             return new Vector2(MathF.Min(MathF.Abs(CheckRect.Left - BeingCheckRect.Right), MathF.Abs(CheckRect.Right - BeingCheckRect.Left)) , MathF.Min(MathF.Abs(CheckRect.Top - BeingCheckRect.Bottom) , MathF.Abs(CheckRect.Bottom - BeingCheckRect.Top)));
@@ -441,6 +411,114 @@ namespace DotAge.Core.Model
         public RectF Copy()
         {
             return new RectF(this.Position , this.Size);
+        }
+    }
+
+    public struct ValueLerp<T>
+    {
+        public List<(T, int)> Frames = [];
+        public int CurrentFramePosition { get; set; } = 0;
+        public int FrameTimer { get; set; } = 0;
+        public bool FrameLoop { get; set; } = false;
+
+        public T NextFrame
+        {
+            get
+            {
+                if (Frames.Count == 0)
+                {
+                    return default;
+                }
+                if (CurrentFramePosition + 1 >= Frames.Count)
+                {
+                    return Frames[0].Item1;
+                }
+                else
+                {
+                    return Frames[CurrentFramePosition + 1].Item1;
+                }
+            }
+        }
+        public T CurrentFrame
+        {
+            get
+            {
+                return Frames.Count <= CurrentFramePosition ? Frames[CurrentFramePosition].Item1 : default;
+            }
+        }
+        public int CurrentTimer
+        {
+            get
+            {
+                return Frames.Count <= CurrentFramePosition ? Frames[CurrentFramePosition].Item2 : 0;
+            }
+        }
+        public float FramePerc
+        {
+            get
+            {
+                return CurrentTimer != 0f ? FrameTimer / CurrentTimer : 1f;
+            }
+        }
+        public ValueLerp()
+        {
+
+        }
+        public bool SetFrame(int frame)
+        {
+            if (CurrentFramePosition != frame && frame >= 0 && frame < Frames.Count)
+            {
+                CurrentFramePosition = frame;
+                FrameTimer = 0;
+                return true;
+            }
+            return false;
+        }
+        public bool UpdateFrame()
+        {
+            if (CurrentFramePosition + 1 >= Frames.Count)
+            {
+                if (FrameLoop == true)
+                {
+                    return SetFrame(0);
+                }
+            }
+            else
+            {
+                return SetFrame(CurrentFramePosition + 1);
+            }
+            return true;
+        }
+        public bool SetTimer(int timer)
+        {
+            if (FrameTimer != timer && timer >= 0 && timer < Frames[CurrentFramePosition].Item2)
+            {
+                FrameTimer = timer;
+                return true;
+            }
+            return false;
+        }
+        public bool UpdateTimer()
+        {
+            if (FrameTimer + 1 >= Frames[CurrentFramePosition].Item2)
+            {
+                SetTimer(0);
+                UpdateFrame();
+            }
+            else
+            {
+                SetTimer(CurrentFramePosition + 1);
+            }
+            return true;
+        }
+        public bool InsertFrame(T rp, int frameLen, int pos = -1)
+        {
+            if (rp != null)
+            {
+                Frames.Insert(pos, (rp, frameLen));
+                return true;
+            }
+            return false;
         }
     }
 }

@@ -8,6 +8,61 @@ using System.Threading.Tasks;
 
 namespace DotAge.Core.Model
 {
+    public interface IIndexable
+    {
+        public List<BaseIndex> BelongIndex { get; set; }
+
+        public bool UpdateBelongIndex(RectF CrashBox)
+        {
+            foreach (var index in BelongIndex.ToArray())
+            {
+                if (index.IndexRange.Contains(CrashBox) == false)
+                {
+                    BelongIndex.Remove(index);
+                }
+            }
+            return true;
+        }
+
+        public bool RegisterIndex(BaseIndex index)
+        {
+            if (index != null)
+            {
+                BelongIndex.Add(index);
+                return true;
+            }
+            return false;
+        }
+
+        public bool UnbindAllIndex()
+        {
+            foreach (var index in BelongIndex.ToArray())
+            {
+                index.RemoveEntity(this as Entity);
+            }
+            BelongIndex.Clear();
+            return true;
+        }
+
+        public bool UnregisterIndex(BaseIndex index)
+        {
+            if (index != null)
+            {
+                return BelongIndex.Remove(index);
+            }
+            return false;
+        }
+
+        public List<Entity> GetRangeEntity()
+        {
+            return [.. BelongIndex.SelectMany(index => index.EntityIndex).Distinct()];
+        }
+
+        public List<IPhysic> GetIndexRangeCrashBox()
+        {
+            return [.. BelongIndex.SelectMany(index => index.CrashBoxIndex).Distinct()];
+        }
+    }
     public class BaseIndex
     {
         public Point IndexPosition { get; set; } = new Point(0, 0);

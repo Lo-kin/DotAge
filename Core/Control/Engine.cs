@@ -1,6 +1,5 @@
 ﻿using DotAge.Core.Model;
 using DotAge.Core.Model.Delegates;
-using DotAge.Core.Model.Dialogue;
 using DotAge.Core.Tools;
 using DotAge.Core.View;
 using Microsoft.Xna.Framework;
@@ -36,7 +35,6 @@ namespace DotAge.Core.Control
         public double LastLoopTime = 0;
 
         public List<Script> Scripts = new List<Script>();
-        public List<Sprite> FrameSprites = new List<Sprite>();
 
         public Engine()
         {
@@ -46,7 +44,7 @@ namespace DotAge.Core.Control
         public bool Initialize()
         {
             CurrentEngineAccessor.Initialize(this);
-            CurrentGrapic = new Graphic();
+            CurrentGrapic = new Graphic(CurrentEngineAccessor);
 
             Thread GrapicThread = new Thread(() => CurrentGrapic.Run())
             {
@@ -452,18 +450,20 @@ namespace DotAge.Core.Control
 
     public class EngineAccessor//将引擎访问器分配给需要访问其他类的类
     {
+        public List<IRender> GetAllRenderObjs;
         public Func<Entity> CreateEntity;
         public Func<Entity , bool> AddEntity;
         public Func<Entity , bool> RemoveEntity;
         public Func<string, TextureRegion> GetTextureRegion;
         public Func<int> GetGameTime;  
-        public Func<MessageEntity , TextSprite> AddMessageEntity;
+        public Func<MessageEntity , RenderProperty> AddMessageEntity;
         public Func<RectF, List<BaseIndex>> GetRangeIndex;
-        public Func<RayF, float, List<IGameEntity>> GetLineIndex;
+        public Func<RayF, float, List<IGame>> GetLineIndex;
         public Func<string , bool> PlaySoundEffect;
 
         public bool Initialize(Engine engine)
         {
+            GetAllRenderObjs = engine.GameData.RenderProperties;
             CreateEntity = () =>
             {
                 Entity entity = new Entity(this);
@@ -495,14 +495,10 @@ namespace DotAge.Core.Control
             {
                 return engine.GetRangeIndex(range);
             };
-            GetLineIndex = (line , length) =>
-            {
-                return engine.GameData.GetRayTrigger(line , length);
-            };
             PlaySoundEffect = (name) =>
             {
                 return engine.PlaySound(name);
-             };
+            };
             return true;
         }
     }

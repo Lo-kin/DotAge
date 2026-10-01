@@ -6,136 +6,53 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DotAge.Core.Control;
-using DotAge.Core.Model.Dialogue;
 using DotAge.Core.View;
 using Microsoft.Xna.Framework;
 
 namespace DotAge.Core.Model
 {
-    public interface IIndexable
-    {
-        public List<BaseIndex> BelongIndex { get; set; }
-
-        public bool UpdateBelongIndex(RectF CrashBox)
-        {
-            foreach (var index in BelongIndex.ToArray())
-            {
-                if (index.IndexRange.Contains(CrashBox) == false)
-                {
-                    BelongIndex.Remove(index);
-                }
-            }
-            return true;
-        }
-
-        public bool RegisterIndex(BaseIndex index)
-        {
-            if (index != null)
-            {
-                BelongIndex.Add(index);
-                return true;
-            }
-            return false;
-        }
-
-        public bool UnbindAllIndex()
-        {
-            foreach (var index in BelongIndex.ToArray())
-            {
-                index.RemoveEntity(this as Entity);
-            }
-            BelongIndex.Clear();
-            return true;
-        }
-
-        public bool UnregisterIndex(BaseIndex index)
-        {
-            if (index != null)
-            {
-                return BelongIndex.Remove(index);
-            }
-            return false;
-        }
-
-        public List<Entity> GetRangeEntity()
-        {
-            return [.. BelongIndex.SelectMany(index => index.EntityIndex).Distinct()];
-        }
-
-        public List<IPhysicEntity> GetIndexRangeCrashBox()
-        {
-            return [.. BelongIndex.SelectMany(index => index.CrashBoxIndex).Distinct()];
-        }
-    }
-
-    public interface IPhysicEntity
-    {
-        PhysicBase PhysicProperty { get; set; }
-        public Func<IPhysicEntity, bool> OnCrash { get; set; }
-
-        public bool Crashed(IPhysicEntity physicEntity) => OnCrash?.Invoke(physicEntity) ?? false;
-    }
-
-    public interface IRenderEntity
-    {
-        RenderEntity RenderProperty { get; set; }
-        public virtual bool UpdateRender() => true;
-    }
-    public interface IGameEntity
-    {
-        GameEntity GameProperty { get; set; }
-        public bool IsAlive() => GameProperty.IsAlive;
-
-        public virtual bool BeUse(IGameEntity user)
-        {
-            return true;
-        }
-
-        public virtual bool Use()
-        {
-            return true;
-        }
-    }
-
-    public class Entity : IPhysicEntity, IRenderEntity, IGameEntity
+    public class Entity : IPhysic, IRender, IGame , ITrigger
     {
         public int ID = -1;
         public EngineAccessor EngineAccess = null;
         public List<Entity> Children = new List<Entity>();
         public Entity Parent = null;
-        public PhysicBase PhysicProperty { get; set; } = new PhysicEntity();
-        public RenderEntity RenderProperty { get; set; } = new RenderEntity();
-        public GameEntity GameProperty { get; set; } = new GameEntity();
-        public List<BaseIndex> BelongIndex { get; set; } = new List<BaseIndex>();
-
-        public event Action OnUpdate;
-
-        public bool IsRenderFollowPhysic = true;
-        private bool _isUsing = false;
+        public Action OnUpdate;
+        public Func<Vector2, bool> OnUpdateForce { get ; set ; }
+        public Func<IPhysic, bool> OnCrash { get ; set ; }
+        public Func<Vector2, bool> OnUpdatePosition { get; set; }
+        public Func<Vector2, bool> OnUpdateSize { get; set; }
+        public Func<Vector2, bool> OnTrigger { get; set; }
+        public Vector2 LastPosition { get ; set ; }
+        public Vector2 Speed { get ; set ; }
+        public Vector2 Accelerate { get ; set ; }
+        public float Mass { get; set; } = 10f;
+        public Vector2 FaceForward { get ; set ; }
+        public Vector2 WishForward { get ; set ; }
+        public Vector2 Position { get ; set ; }
+        public Vector2 Size { get ; set ; } = new Vector2(32 , 32);
+        public Vector2 Scale { get; set; } = Vector2.One;
+        public float Rotation { get; set; } = 0f;
+        public ValueClamp<float> Health { get; set; } = new ValueClamp<float>(100, 0, 100);
+        public ValueClamp<float> Sight { get ; set ; } = new ValueClamp<float>(float.PositiveInfinity , 20f, 100f);
+        public ValueClamp<float> Money { get ; set ; } = new ValueClamp<float>(float.PositiveInfinity , 0, 0);
+        public string Name { get ; set ; }
+        public bool IsFixedToWindow { get ; set ; }
+        public string Description { get ; set ; }
+        public Stator TriggerStator { get ; set ; }
+        public MessageEntity InformationSource { get ; set ; }
+        public RenderProperty RenderProp { get ; set ; }
 
         public Entity(EngineAccessor accessor)
         {
             this.EngineAccess = accessor;
-
-            RenderProperty.LoadTexture("MissingTexture");
-            GameProperty.Trigger.TriggerLoacation = PhysicProperty;
-            OnUpdate += () => 
-            {
-                if (IsRenderFollowPhysic == true)
-                {
-                    RenderProperty.UpdatePosition(PhysicProperty.Position);
-                    RenderProperty.UpdateSize(PhysicProperty.Size);
-                }
-                UpdateBelongIndex();
-                GameProperty.SetFaceForward(PhysicProperty.FaceForward);
-            };
-            PhysicProperty.OnCrashEvent += (pb) => 
-            {
-                OnCrash(pb);
-            };
+            var trp = new TextureRenderProperty();
+            trp.Frames.InsertFrame(TextureManager.GetTextureRegionByName("MissingTexture"), 1);
+            trp.Location.InsertFrame(this, 1);
+            RenderProp = trp;
         }
 
-        public virtual bool Update()//整合更新安排的事件
+        public virtual bool Update()
         {
             if (OnUpdate != null)
             {
@@ -195,165 +112,9 @@ namespace DotAge.Core.Model
             return false;
         }
 
-        public virtual bool OnCrash(IPhysicEntity BeingCrashedEntity)
-        {
-            return true;
-        }
-
-        public virtual void OnHealthChange(float deltaHealth , Entity source)
-        {
-            if (GameProperty.Health >= 0)
-            {
-                GameProperty.Health += deltaHealth;
-                if (GameProperty.Health <= 0)
-                {
-                    if (source != null)
-                    {
-                        source.Kill(this);
-                        EngineAccess.RemoveEntity(this);
-                    }
-                }
-            }
-
-        }
-
-        public virtual ItemInformation? OnClick()
-        {
-            return null;
-        }
-
-        public virtual bool Kill(Entity entity)
-        {
-            if (entity == null)
-            {  return false; }
-            var parent = this;
-            if ( parent != null)
-            {
-                while (true)
-                {
-                    if (parent.Parent == null)
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        parent = parent.Parent;
-                    }
-                }
-            }
-            parent.GameProperty.KilledEntity.Add(entity);
-            entity.GameProperty.BeingKilledEntity = parent;
-            if (entity.GameProperty.KilledEntity.Count % 2 == 0)
-            {
-                parent.GameProperty.SkillPoint++;
-            }
-            return true;
-        }
-
-        public bool UpdateBelongIndex()
-        {
-            BelongIndex = EngineAccess?.GetRangeIndex(new RectF(PhysicProperty.Position , PhysicProperty.Size)) ?? [];
-            return true;
-        }
-
-        public bool UnbindAllIndex()
-        {
-            foreach (var index in BelongIndex.ToArray())
-            {
-                index.RemoveEntity(this);
-                index.RemoveCrashBox(this);
-                index.RemoveRenderEntity(this);
-            }
-            BelongIndex.Clear();
-            return true;
-        }
-
-        public bool RegisterIndex(BaseIndex index)
-        {
-            if (index != null)
-            {
-                BelongIndex.Add(index);
-                return true;
-            }
-            return false;
-        }
-
-        public bool UnregisterIndex(BaseIndex index)
-        {
-            if (index != null)
-            {
-                return BelongIndex.Remove(index);
-            }
-            return false;
-        }
-
-        public virtual bool Use()
-        {
-            if (_isUsing)
-            {
-                return false;
-            }
-            _isUsing = true;
-            try
-            {
-                RayF SearchForward = new RayF(PhysicProperty.CrashBox.Center , PhysicProperty.FaceForward);
-                var ret = EngineAccess?.GetLineIndex(SearchForward, GameProperty.UseRange);
-                foreach (var entity in ret)
-                {
-                    if (entity != null && entity != this)
-                    {
-                        entity.BeUse(this);
-                    }
-                }
-            }
-            finally
-            {
-                _isUsing = false;
-            }
-            return false;
-        }
-
-        public virtual bool BeUse(IGameEntity user)
-        {
-            return true;
-        }
-
-        public List<Entity> GetIndexRangeEntity()
-        {
-            return [.. BelongIndex.SelectMany(index => index.EntityIndex).Distinct()];
-        }
-
-        public List<IPhysicEntity> GetIndexRangeCrashBox()
-        {
-            return [.. BelongIndex.SelectMany(index => index.CrashBoxIndex).Distinct()];
-        }
-
-        public List<IRenderEntity> GetIndexRangeRender()
-        {
-            return [.. BelongIndex.SelectMany(index => index.RenderIndex).Distinct()];
-        }
-
-        public virtual List<Entity> GetRangeEntity()
-        {
-            float range = GameProperty.LoadEntityRange;
-            return EngineAccess?.GetRangeIndex(new RectF(PhysicProperty.Position - new Vector2(range, range) , PhysicProperty.Size + new Vector2(range * 2, range * 2)))?.SelectMany(index => index.EntityIndex).Distinct().ToList() ?? [];
-        }
-
-        public virtual List<IPhysicEntity> GetRangeCrashBox()
-        {
-            float range = MathF.Max(PhysicProperty.WishRange.Size.X , PhysicProperty.WishRange.Size.Y);
-            return EngineAccess?.GetRangeIndex(new RectF(PhysicProperty.Position - new Vector2(range, range), PhysicProperty.Size + new Vector2(range * 2, range * 2)))?.SelectMany(index => index.CrashBoxIndex).Distinct().ToList() ?? [];
-        }
-
-        public virtual List<IRenderEntity> GetRangeRender()
-        {
-            RectF range = new(PhysicProperty.Position - (( GameProperty.LoadChunkRange / 2 ) * GameSetting.ChunkSize) ,new Vector2( GameProperty.LoadChunkRange , GameProperty.LoadChunkRange ) * GameSetting.ChunkSize);
-            return EngineAccess?.GetRangeIndex(range)?.SelectMany(index => index.RenderIndex).Distinct().ToList() ?? [];
-        }
-
         public override string ToString()
         {
-            return $"Entity ID: {ID}, Type: {GetType().Name}, Position: {PhysicProperty.Position}, Size: {PhysicProperty.Size}, IsAlive: {GameProperty.IsAlive}";
+            return $"Entity ID: {ID}, Type: {GetType().Name}, Position: {Position}, Size: {Size}, IsAlive: {Health.CurrentValue < Health.MinValue}";
         }
     }
 
